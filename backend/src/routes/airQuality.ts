@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middlewares';
 import { OpenAQError } from '../integrations/openaq/client';
-import { buscarEstacoes, obterEstacao } from '../services/airQuality';
+import { buscarEstacoes, obterEstacao, obterUltimasMedicoes } from '../services/airQuality';
 import { COORDENADAS_CIDADES } from '../data/cidadesCoordenadas';
 
 const router = Router();
@@ -107,6 +107,19 @@ router.get('/locations/:id', async (req: Request, res: Response) => {
 
   try {
     res.json({ estacao: await obterEstacao(id), fonte: 'OpenAQ' });
+  } catch (error) {
+    responderErro(res, error);
+  }
+});
+
+// GET /api/air-quality/locations/:id/latest  — medições mais recentes por poluente, consolidando OpenAQ (principal)
+// com Open-Meteo (complementar, só para poluente ausente ou desatualizado). Falha da Open-Meteo não gera erro aqui.
+router.get('/locations/:id/latest', async (req: Request, res: Response) => {
+  const id = lerId(req);
+  if (!id) return res.status(400).json({ error: 'ID inválido' });
+
+  try {
+    res.json(await obterUltimasMedicoes(id));
   } catch (error) {
     responderErro(res, error);
   }
