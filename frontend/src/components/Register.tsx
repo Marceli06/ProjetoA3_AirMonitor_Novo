@@ -1,5 +1,6 @@
 ﻿import { useState } from 'react';
 import { authAPI } from '../api';
+import { UserRole } from './Dashboard';
 import './Register.css';
 
 const CITIES: Record<string, string[]> = {
@@ -23,9 +24,10 @@ const Icon = ({ children }: { children: React.ReactNode }) => (
 
 interface RegisterProps {
   onBackToLogin: () => void;
+  onRegistered: (role: UserRole, name: string) => void;
 }
 
-export default function Register({ onBackToLogin }: RegisterProps) {
+export default function Register({ onBackToLogin, onRegistered }: RegisterProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -64,6 +66,8 @@ export default function Register({ onBackToLogin }: RegisterProps) {
       });
       localStorage.setItem('authToken', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
+      const user = response.data.user;
+      onRegistered(user?.perfil === 'ADMIN' ? 'admin' : 'user', user?.nome || name);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Erro ao criar conta');
     } finally {

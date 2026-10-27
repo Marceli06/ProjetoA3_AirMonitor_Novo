@@ -1,14 +1,16 @@
 ﻿import { useState } from 'react';
 import { authAPI } from '../api';
 import { LoginFormData } from '../types';
+import { UserRole } from './Dashboard';
 import './Login.css';
 
 interface LoginProps {
   onForgotPassword: () => void;
   onCreateAccount: () => void;
+  onLogin: (role: UserRole, name: string) => void;
 }
 
-export default function Login({ onForgotPassword, onCreateAccount }: LoginProps) {
+export default function Login({ onForgotPassword, onCreateAccount, onLogin }: LoginProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -31,7 +33,8 @@ export default function Login({ onForgotPassword, onCreateAccount }: LoginProps)
       const response = await authAPI.login(formData.email, formData.password);
       localStorage.setItem('authToken', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
-      window.location.href = '/dashboard';
+      const user = response.data.user;
+      onLogin(user?.perfil === 'ADMIN' ? 'admin' : 'user', user?.nome || formData.email);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Erro ao fazer login');
     } finally {
