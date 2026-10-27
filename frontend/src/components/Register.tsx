@@ -1,4 +1,5 @@
 ﻿import { useState } from 'react';
+import { authAPI } from '../api';
 import './Register.css';
 
 const CITIES: Record<string, string[]> = {
@@ -34,6 +35,7 @@ export default function Register({ onBackToLogin }: RegisterProps) {
   const [city, setCity] = useState('');
   const [region, setRegion] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const regions = city ? CITIES[city] : [];
 
@@ -42,13 +44,31 @@ export default function Register({ onBackToLogin }: RegisterProps) {
     setRegion('');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
       setError('As senhas não coincidem.');
       return;
     }
     setError('');
+    setLoading(true);
+
+    try {
+      const response = await authAPI.register({
+        nome: name,
+        email,
+        password,
+        confirmPassword,
+        cidade: city,
+        regiao: region,
+      });
+      localStorage.setItem('authToken', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Erro ao criar conta');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -150,7 +170,7 @@ export default function Register({ onBackToLogin }: RegisterProps) {
               </div>
             </div>
 
-            <button type="submit" className="register-submit">Criar conta</button>
+            <button type="submit" className="register-submit" disabled={loading}>{loading ? 'Criando conta...' : 'Criar conta'}</button>
           </form>
 
           <button type="button" className="register-link" onClick={onBackToLogin}>

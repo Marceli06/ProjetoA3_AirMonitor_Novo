@@ -18,3 +18,12 @@ export interface RegisterFormData {
   password: string;
   confirmPassword: string;
 }
+
+export interface RegisterPayload {
+  nome: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  cidade: string;
+  regiao: string;
+}

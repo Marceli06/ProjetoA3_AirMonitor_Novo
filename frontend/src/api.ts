@@ -1,4 +1,5 @@
 ﻿import axios from 'axios';
+import { RegisterPayload } from './types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -21,8 +22,7 @@ api.interceptors.request.use((config) => {
 export const authAPI = {
   login: (email: string, password: string) =>
     api.post('/auth/login', { email, password }),
-  register: (email: string, password: string, confirmPassword: string) =>
-    api.post('/auth/register', { email, password, confirmPassword }),
+  register: (dados: RegisterPayload) => api.post('/auth/register', dados),
 };
 
 export default api;
