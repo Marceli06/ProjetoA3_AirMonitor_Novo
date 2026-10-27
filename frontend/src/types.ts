@@ -49,3 +49,48 @@ export interface RegisterPayload {
   cidade: string;
   regiao: string;
 }
+
+// ---- Qualidade do ar (respostas de /api/air-quality)
+export interface EstacaoAr {
+  id: number;
+  nome: string | null;
+  localidade: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  distanciaMetros: number | null;
+  pais: string | null;
+  ultimaMedicaoEm: string | null;
+}
+
+export interface EstacoesArResponse {
+  total: number;
+  estacoes: EstacaoAr[];
+  mensagem: string | null;
+}
+
+export interface MedicaoAr {
+  chave: string;
+  poluente: string;
+  disponivel: boolean;
+  valor: number | null;
+  unidade: string | null;
+  dataHora: string | null;
+  fonte: 'OPENAQ' | 'OPEN_METEO' | null;
+  tipoDado: 'MEDICAO' | 'MODELO' | null;
+  desatualizada: boolean | null;
+}
+
+export interface StatusFontesAr {
+  OPENAQ: 'ok' | 'falha';
+  OPEN_METEO: 'nao_necessaria' | 'ok' | 'falha' | 'sem_coordenadas';
+  erroOpenAQ: string | null;
+}
+
+export interface UltimasMedicoesArResponse {
+  estacao: EstacaoAr;
+  atualizadoEm: string | null;
+  medicoes: MedicaoAr[];
+  fontesUtilizadas: string[];
+  statusFontes: StatusFontesAr;
+  atribuicoes: string[];
+}

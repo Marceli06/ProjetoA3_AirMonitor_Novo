@@ -433,6 +433,52 @@
   color: #15a05a;
 }
 
+/* Fontes dos dados reais de qualidade do ar */
+.tag-model,
+.tag-none {
+  align-self: flex-start;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+}
+
+.tag-model {
+  background: #e8f1fd;
+  color: #1f64c8;
+}
+
+.tag-none {
+  background: #eef2f6;
+  color: #5c7a99;
+}
+
+.tag-stale {
+  color: #b7791f;
+}
+
+.pollutant-meta {
+  font-size: 0.65rem;
+  color: #5c7a99;
+}
+
+.air-attribution,
+.air-error,
+.quality-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.65rem;
+  color: #5c7a99;
+}
+
+.air-error {
+  color: #b42318;
+}
+
+.quality-note {
+  padding-top: 0.4rem;
+  border-top: 1px dashed #dbe9f2;
+  text-align: center;
+}
+
 /* Map */
 .map {
   position: relative;

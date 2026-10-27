@@ -3,7 +3,7 @@ import { authAPI } from '../api';
 import { UserRole } from './Dashboard';
 import './Register.css';
 
-const CITIES: Record<string, string[]> = {
+export const CITIES: Record<string, string[]> = {
   'São Paulo': ['Centro', 'Zona Norte', 'Zona Sul', 'Zona Leste', 'Zona Oeste'],
   'Guarulhos': ['Centro', 'Zona Norte', 'Zona Sul', 'Zona Leste', 'Zona Oeste'],
   'Campinas': ['Centro', 'Zona Norte', 'Zona Sul', 'Zona Leste', 'Zona Oeste'],

@@ -44,7 +44,7 @@ router.post('/login', async (req: Request, res: Response) => {
 
     res.json({
       token,
-      user: { id: usuario.id, nome: usuario.nome, email: usuario.email, perfil: usuario.perfil },
+      user: { id: usuario.id, nome: usuario.nome, email: usuario.email, perfil: usuario.perfil, cidade: usuario.cidade, regiao: usuario.regiao },
     });
   } catch (error) {
     console.error(error);
@@ -79,7 +79,7 @@ router.post('/register', async (req: Request, res: Response) => {
     const result = await pool.query<Usuario>(
       `INSERT INTO usuarios (nome, email, senha_hash, perfil, cidade, regiao)
        VALUES ($1, $2, $3, 'USUARIO', $4, $5)
-       RETURNING id, nome, email, perfil`,
+       RETURNING id, nome, email, perfil, cidade, regiao`,
       [String(nome).trim(), normalizarEmail(email), senhaHash, cidade, regiao]
     );
 
@@ -88,7 +88,7 @@ router.post('/register', async (req: Request, res: Response) => {
 
     res.status(201).json({
       token,
-      user: { id: novo.id, nome: novo.nome, email: novo.email, perfil: novo.perfil },
+      user: { id: novo.id, nome: novo.nome, email: novo.email, perfil: novo.perfil, cidade: novo.cidade, regiao: novo.regiao },
     });
   } catch (error: any) {
     if (error?.code === '23505') {

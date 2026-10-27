@@ -1,5 +1,5 @@
 ﻿import axios from 'axios';
-import { RegisterPayload, UsuarioAdmin, DadosUsuarioForm, NovoUsuarioData } from './types';
+import { EstacoesArResponse, UltimasMedicoesArResponse, RegisterPayload, UsuarioAdmin, DadosUsuarioForm, NovoUsuarioData } from './types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -33,6 +33,14 @@ export const adminAPI = {
     api.put<UsuarioAdmin>(`/admin/usuarios/${id}`, dados),
   alterarStatus: (id: number, ativo: boolean) =>
     api.patch<UsuarioAdmin>(`/admin/usuarios/${id}/status`, { ativo }),
+};
+
+export const airQualityAPI = {
+  // Estações que medem algum dos poluentes, da mais próxima do centro da cidade para a mais distante
+  estacoesPorCidade: (cidade: string, limite = 1) =>
+    api.get<EstacoesArResponse>('/air-quality/locations', { params: { cidade, limite, raio: 25000 } }),
+  ultimasMedicoes: (estacaoId: number) =>
+    api.get<UltimasMedicoesArResponse>(`/air-quality/locations/${estacaoId}/latest`),
 };
 
 export default api;

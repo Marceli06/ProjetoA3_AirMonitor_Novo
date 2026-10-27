@@ -1,5 +1,8 @@
 ﻿import { useState } from 'react';
 import UsersPage from './UsersPage';
+import { CITIES } from './Register';
+import { CIDADE_PADRAO, lerUsuarioLogado, useQualidadeAr } from '../hooks/useQualidadeAr';
+import { MedicaoAr } from '../types';
 import './Dashboard.css';
 
 export type UserRole = 'admin' | 'user';
@@ -56,14 +59,27 @@ const ADMIN_MENU: { label: string; icon: IconName }[] = [
   { label: 'Relatórios', icon: 'file' },
 ];
 
+// Apenas nome/descrição de cada poluente: valores, unidades e fontes vêm do backend (/api/air-quality)
 const POLLUTANTS = [
-  { name: 'PM2.5', desc: 'Material particulado fino', value: '12', unit: 'µg/m³' },
-  { name: 'PM10', desc: 'Material particulado', value: '18', unit: 'µg/m³' },
-  { name: 'O₃', desc: 'Ozônio', value: '64', unit: 'µg/m³' },
-  { name: 'NO₂', desc: 'Dióxido de nitrogênio', value: '22', unit: 'µg/m³' },
-  { name: 'CO', desc: 'Monóxido de carbono', value: '0,6', unit: 'mg/m³' },
-  { name: 'SO₂', desc: 'Dióxido de enxofre', value: '5', unit: 'µg/m³' },
+  { chave: 'pm25', name: 'PM2.5', desc: 'Material particulado fino' },
+  { chave: 'pm10', name: 'PM10', desc: 'Material particulado' },
+  { chave: 'o3', name: 'O₃', desc: 'Ozônio' },
+  { chave: 'no2', name: 'NO₂', desc: 'Dióxido de nitrogênio' },
+  { chave: 'co', name: 'CO', desc: 'Monóxido de carbono' },
+  { chave: 'so2', name: 'SO₂', desc: 'Dióxido de enxofre' },
 ];
+
+const CIDADES = Object.keys(CITIES);
+
+const ROTULO_FONTE = { OPENAQ: 'Medição de estação', OPEN_METEO: 'Estimativa por modelo' } as const;
+
+const formatarDataHora = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+
+const formatarValor = (valor: number) => valor.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+
+const formatarDistancia = (metros: number | null) =>
+  metros === null ? null : `${(metros / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km`;
 
 const RANGE_TABS = ['IQA', 'PM2.5', 'PM10', 'O₃', 'NO₂', 'CO', 'SO₂'];
 
@@ -101,7 +117,12 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
   const isAdmin = role === 'admin';
   const [activeTab, setActiveTab] = useState('IQA');
   const [activeMenu, setActiveMenu] = useState('Dashboard');
-  const [region, setRegion] = useState(isAdmin ? 'São Paulo - SP' : 'São Paulo - Zona Leste');
+  // Cidade cadastrada do usuário (vem do login/cadastro). Usuário comum vê só a sua; admin pode trocar de cidade.
+  const cidadeCadastrada = lerUsuarioLogado()?.cidade ?? '';
+  const cidadeUsuario = CIDADES.includes(cidadeCadastrada) ? cidadeCadastrada : null;
+  const cidadesDisponiveis = isAdmin || !cidadeUsuario ? CIDADES : [cidadeUsuario];
+  const [region, setRegion] = useState(cidadeUsuario || CIDADE_PADRAO);
+  const qualidade = useQualidadeAr(region);
 
   const displayName = isAdmin ? 'Administrador' : userName;
   const initials = isAdmin ? 'AD' : userName.slice(0, 2).toUpperCase();
@@ -203,17 +224,17 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
               <label className="dash-select">
                 <Icon name="pin" />
                 <select value={region} onChange={(e) => setRegion(e.target.value)}>
-                  <option>São Paulo - SP</option>
-                  <option>São Paulo - Zona Leste</option>
-                  <option>São Paulo - Zona Norte</option>
+                  {cidadesDisponiveis.map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
                 </select>
                 <Icon name="dropdown" />
               </label>
               <div className="dash-date">
                 <Icon name="calendar" />
                 <div>
-                  <strong>10/09/2026 19:30</strong>
-                  <small>Última atualização</small>
+                  <strong>{qualidade.loading ? 'Carregando…' : formatarDataHora(qualidade.atualizadoEm)}</strong>
+                  <small>Última atualização dos dados</small>
                 </div>
               </div>
             </div>
@@ -232,6 +253,7 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
                 <Icon name="smile" />
                 <p>A qualidade do ar está dentro dos níveis considerados adequados para a saúde.</p>
               </div>
+              <p className="quality-note">Valor ilustrativo: o IQA ainda não é calculado a partir dos dados reais.</p>
             </section>
 
             <section className="dash-card dash-pollutants">
@@ -240,19 +262,43 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
                 <a href="#">Ver todos <Icon name="arrow" /></a>
               </div>
               <div className="pollutant-grid">
-                {POLLUTANTS.map((p) => (
-                  <div key={p.name} className="pollutant">
-                    <div className="pollutant-name">
-                      <strong>{p.name}</strong>
-                      <small>{p.desc}</small>
+                {POLLUTANTS.map((p) => {
+                  const m: MedicaoAr | undefined = qualidade.medicoes.find((x) => x.chave === p.chave);
+                  const temValor = !!m && m.disponivel && m.valor !== null && m.fonte !== null;
+                  return (
+                    <div key={p.name} className="pollutant">
+                      <div className="pollutant-name">
+                        <strong>{p.name}</strong>
+                        <small>{p.desc}</small>
+                      </div>
+                      <div className="pollutant-value">
+                        {temValor ? (
+                          <>
+                            <b>{formatarValor(m!.valor!)}</b> <span>{m!.unidade}</span>
+                          </>
+                        ) : (
+                          <span>{qualidade.loading ? 'Carregando…' : '—'}</span>
+                        )}
+                      </div>
+                      {temValor ? (
+                        <>
+                          <span className={m!.fonte === 'OPEN_METEO' ? 'tag-model' : 'tag-ok'}>● {ROTULO_FONTE[m!.fonte!]}</span>
+                          <small className="pollutant-meta">
+                            {formatarDataHora(m!.dataHora)}
+                            {m!.desatualizada && <span className="tag-stale"> · Desatualizado</span>}
+                          </small>
+                        </>
+                      ) : (
+                        !qualidade.loading && <span className="tag-none">● Sem dados disponíveis</span>
+                      )}
                     </div>
-                    <div className="pollutant-value">
-                      <b>{p.value}</b> <span>{p.unit}</span>
-                    </div>
-                    <span className="tag-ok">● Adequado</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
+              {qualidade.erro && <p className="air-error">{qualidade.erro}</p>}
+              {qualidade.atribuicoes.map((a) => (
+                <p key={a} className="air-attribution">{a}</p>
+              ))}
             </section>
 
             <section className="dash-card dash-station">
@@ -275,10 +321,20 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
               </div>
               <div className="station-info">
                 <div>
-                  <strong>Estação Zona Leste</strong>
-                  <small>São Paulo - SP</small>
+                  <strong>{qualidade.estacao ? qualidade.estacao.nome || `Estação ${qualidade.estacao.id}` : qualidade.loading ? 'Carregando…' : 'Sem estação'}</strong>
+                  <small>{qualidade.estacao?.localidade || region}</small>
                 </div>
-                {isAdmin ? <span className="tag-online">● Online</span> : <b>4,2 km <Icon name="chevron" /></b>}
+                {isAdmin ? (
+                  qualidade.statusFontes && (
+                    <span className={qualidade.statusFontes.OPENAQ === 'ok' ? 'tag-online' : 'tag-none'}>
+                      ● OpenAQ {qualidade.statusFontes.OPENAQ === 'ok' ? 'disponível' : 'indisponível'}
+                    </span>
+                  )
+                ) : (
+                  formatarDistancia(qualidade.distanciaMetros) && (
+                    <b title="Distância até o centro da cidade selecionada">{formatarDistancia(qualidade.distanciaMetros)} <Icon name="chevron" /></b>
+                  )
+                )}
               </div>
             </section>
           </div>
