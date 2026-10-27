@@ -15,7 +15,12 @@ const App: React.FC = () => {
       <Dashboard
         role={session.role}
         userName={session.name}
-        onLogout={() => setCurrentPage('login')}
+        onLogout={() => {
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('user');
+          setSession({ role: 'user', name: '' });
+          setCurrentPage('login');
+        }}
       />
     );
   }

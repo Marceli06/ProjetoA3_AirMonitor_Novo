@@ -1,4 +1,5 @@
 ﻿import { useState } from 'react';
+import UsersPage from './UsersPage';
 import './Dashboard.css';
 
 export type UserRole = 'admin' | 'user';
@@ -184,6 +185,15 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
         </header>
 
         <main className="dash-main">
+          {activeMenu === 'Usuários' && isAdmin ? (
+            <UsersPage />
+          ) : activeMenu !== 'Dashboard' ? (
+            <section className="dash-card">
+              <h2>{activeMenu}</h2>
+              <p className="dash-placeholder">Esta tela ainda não foi implementada.</p>
+            </section>
+          ) : (
+          <>
           <section className="dash-heading">
             <div>
               <h1>Olá, {displayName}!</h1>
@@ -338,7 +348,12 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
               <h2>Acesso rápido</h2>
               <div className="quick-grid">
                 {ADMIN_QUICK.map((q) => (
-                  <button key={q.title} type="button" className="quick-item">
+                  <button
+                    key={q.title}
+                    type="button"
+                    className="quick-item"
+                    onClick={() => q.title === 'Gerenciar usuários' && setActiveMenu('Usuários')}
+                  >
                     <span className="item-icon tone-info"><Icon name={q.icon} /></span>
                     <div className="item-body">
                       <strong>{q.title}</strong>
@@ -349,6 +364,8 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
                 ))}
               </div>
             </section>
+          )}
+          </>
           )}
         </main>
       </div>

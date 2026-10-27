@@ -1,0 +1,172 @@
+.users-card {
+  gap: 0.8rem;
+}
+
+.users-table-wrap {
+  overflow-x: auto;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.users-table th {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid #dbe9f2;
+  color: #5c7a99;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.users-table td {
+  padding: 0.6rem;
+  border-bottom: 1px solid #eef3f7;
+  color: #1d3557;
+}
+
+.users-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.users-tag-off {
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  background: #fdecec;
+  color: #e5484d;
+  font-size: 0.7rem;
+}
+
+.users-actions {
+  display: flex;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+.users-btn {
+  padding: 0.4rem 0.8rem;
+  background: #fff;
+  border: 1px solid #cfe0ec;
+  border-radius: 8px;
+  color: #0b3b8c;
+  font-size: 0.78rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.users-btn:hover:not(:disabled) {
+  border-color: #0b5ed7;
+}
+
+.users-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.users-btn-primary {
+  background: #0b5ed7;
+  border-color: #0b5ed7;
+  color: #fff;
+}
+
+.users-btn-primary:hover:not(:disabled) {
+  background: #0a52bd;
+}
+
+.users-empty {
+  margin: 0;
+  color: #5c7a99;
+  font-size: 0.85rem;
+}
+
+.users-alert {
+  padding: 0.55rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+}
+
+.users-alert-ok {
+  background: #e9f9f0;
+  color: #15a05a;
+}
+
+.users-alert-error {
+  background: #fdecec;
+  color: #c93a3f;
+}
+
+.users-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 59, 140, 0.35);
+}
+
+.users-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  width: min(420px, 92vw);
+  max-height: 92vh;
+  padding: 1.2rem;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(11, 59, 140, 0.2);
+}
+
+.users-modal h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #0b3b8c;
+}
+
+.users-hint {
+  margin: 0;
+  color: #5c7a99;
+  font-size: 0.75rem;
+}
+
+.users-modal label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  color: #0b3b8c;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.users-modal input,
+.users-modal select {
+  padding: 0.5rem 0.65rem;
+  background: #fff;
+  border: 1px solid #cfe0ec;
+  border-radius: 8px;
+  color: #1d3557;
+  font-size: 0.85rem;
+  font-family: inherit;
+  font-weight: 400;
+  outline: none;
+}
+
+.users-modal input:focus,
+.users-modal select:focus {
+  border-color: #0b5ed7;
+}
+
+.users-modal select:disabled {
+  background: #f0f6fb;
+}
+
+.users-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.3rem;
+}

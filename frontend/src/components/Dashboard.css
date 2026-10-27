@@ -666,3 +666,8 @@
     overflow: visible;
   }
 }
+.dash-placeholder {
+  margin: 0;
+  color: #5c7a99;
+  font-size: 0.85rem;
+}
