@@ -1,26 +1,26 @@
 ﻿import React, { useState } from 'react';
 import Login from './components/Login';
 import ForgotPassword from './components/ForgotPassword';
-import ComingSoon from './components/ComingSoon';
+import Register from './components/Register';
 
-type PageType = 'login' | 'forgot-password' | 'coming-soon';
+type PageType = 'login' | 'forgot-password' | 'register';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<PageType>('login');
 
+  if (currentPage === 'forgot-password') {
+    return <ForgotPassword onBack={() => setCurrentPage('login')} />;
+  }
+
+  if (currentPage === 'register') {
+    return <Register onBackToLogin={() => setCurrentPage('login')} />;
+  }
+
   return (
-    <div>
-      {currentPage === 'login' ? (
-        <Login 
-          onForgotPassword={() => setCurrentPage('forgot-password')}
-          onCreateAccount={() => setCurrentPage('coming-soon')}
-        />
-      ) : currentPage === 'forgot-password' ? (
-        <ForgotPassword onBack={() => setCurrentPage('login')} />
-      ) : (
-        <ComingSoon onBack={() => setCurrentPage('login')} />
-      )}
-    </div>
+    <Login
+      onForgotPassword={() => setCurrentPage('forgot-password')}
+      onCreateAccount={() => setCurrentPage('register')}
+    />
   );
 };
 

@@ -9,7 +9,6 @@ interface LoginProps {
 }
 
 export default function Login({ onForgotPassword, onCreateAccount }: LoginProps) {
-  const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -17,7 +16,6 @@ export default function Login({ onForgotPassword, onCreateAccount }: LoginProps)
     email: '',
     password: '',
   });
-  const [confirmPassword, setConfirmPassword] = useState('');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -39,34 +37,6 @@ export default function Login({ onForgotPassword, onCreateAccount }: LoginProps)
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    try {
-      const response = await authAPI.register(
-        formData.email,
-        formData.password,
-        confirmPassword
-      );
-      localStorage.setItem('authToken', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      window.location.href = '/dashboard';
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Erro ao registrar');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreateAccountClick = () => {
-    setIsLogin(false);
-    setError('');
-    setFormData({ email: '', password: '' });
-    setConfirmPassword('');
   };
 
   return (
@@ -107,7 +77,7 @@ export default function Login({ onForgotPassword, onCreateAccount }: LoginProps)
 
           {error && <div className="error-message">{error}</div>}
 
-          <form onSubmit={isLogin ? handleLogin : handleRegister} className="form">
+          <form onSubmit={handleLogin} className="form">
             <div className="form-group">
               <label htmlFor="email">E-mail</label>
               <input
@@ -147,38 +117,22 @@ export default function Login({ onForgotPassword, onCreateAccount }: LoginProps)
               </div>
             </div>
 
-            {!isLogin && (
-              <div className="form-group">
-                <label htmlFor="confirmPassword">Confirmar Senha</label>
-                <input
-                  type="password"
-                  id="confirmPassword"
-                  placeholder="Confirme sua senha"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                />
-              </div>
-            )}
-
             <button
               type="submit"
               className="btn btn-primary"
               disabled={loading}
             >
-              {loading ? 'Carregando...' : isLogin ? 'Entrar' : 'Criar conta'}
+              {loading ? 'Carregando...' : 'Entrar'}
             </button>
           </form>
 
-          {isLogin && (
-            <button
-              type="button"
-              className="forgot-password-btn"
-              onClick={onForgotPassword}
-            >
-              Esqueci minha senha
-            </button>
-          )}
+          <button
+            type="button"
+            className="forgot-password-btn"
+            onClick={onForgotPassword}
+          >
+            Esqueci minha senha
+          </button>
 
           <div className="divider">
             <span>ou</span>
@@ -187,24 +141,16 @@ export default function Login({ onForgotPassword, onCreateAccount }: LoginProps)
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={() => {
-              if (isLogin) {
-                handleCreateAccountClick();
-                onCreateAccount();
-              } else {
-                setIsLogin(true);
-                setError('');
-              }
-            }}
+            onClick={onCreateAccount}
           >
-            {isLogin ? 'Criar conta' : 'Voltar ao login'}
+            Criar conta
           </button>
         </div>
       </main>
 
       {/* Footer */}
       <footer className="login-footer">
-        <p>&copy; 2024 AirMonitor. Todos os direitos reservados.</p>
+        <p>&copy; 2026 AirMonitor. Todos os direitos reservados.</p>
         <p>Um ar melhor para um futuro mais saudável.</p>
       </footer>
     </div>
