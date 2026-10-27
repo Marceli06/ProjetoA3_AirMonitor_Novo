@@ -9,7 +9,9 @@
     "start": "node dist/index.js",
     "db:migrate": "tsx src/scripts/migrate.ts",
     "admin:create": "tsx src/scripts/createAdmin.ts",
-    "openaq:validate": "tsx src/scripts/validateOpenAQ.ts"
+    "openaq:validate": "tsx src/scripts/validateOpenAQ.ts",
+    "fallback:validate": "tsx src/scripts/validateFallback.ts",
+    "fallback-total:validate": "tsx src/scripts/validateFallbackTotal.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
