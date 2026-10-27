@@ -2,9 +2,20 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import pool from '../database';
-import { User, JWTPayload } from '../types';
+import { Usuario, JWTPayload, Perfil } from '../types';
+import { CIDADES } from '../data/cidades';
 
 const router = Router();
+const SALT_ROUNDS = 12;
+
+const normalizarEmail = (email: string) => String(email).trim().toLowerCase();
+
+const gerarToken = (id: number, email: string, perfil: Perfil) =>
+  jwt.sign(
+    { userId: id, email, perfil } as JWTPayload,
+    process.env.JWT_SECRET || 'secret',
+    { expiresIn: '24h' }
+  );
 
 // Login
 router.post('/login', async (req: Request, res: Response) => {
@@ -15,38 +26,38 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Email e senha são obrigatórios' });
     }
 
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    const user = result.rows[0] as User | undefined;
+    const result = await pool.query<Usuario>('SELECT * FROM usuarios WHERE email = $1', [normalizarEmail(email)]);
+    const usuario = result.rows[0];
 
-    if (!user) {
+    // Mesma resposta para e-mail inexistente, conta inativa ou senha errada
+    if (!usuario || !usuario.ativo) {
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+    const senhaValida = await bcrypt.compare(password, usuario.senha_hash);
 
-    if (!isPasswordValid) {
+    if (!senhaValida) {
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
 
-    const token = jwt.sign(
-      { userId: user.id, email: user.email } as JWTPayload,
-      process.env.JWT_SECRET || 'secret',
-      { expiresIn: '24h' }
-    );
+    const token = gerarToken(usuario.id, usuario.email, usuario.perfil);
 
-    res.json({ token, user: { id: user.id, email: user.email } });
+    res.json({
+      token,
+      user: { id: usuario.id, nome: usuario.nome, email: usuario.email, perfil: usuario.perfil },
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Erro ao fazer login' });
   }
 });
 
-// Registrar usuário
+// Cadastro público: sempre cria USUARIO; o perfil enviado pelo cliente é ignorado
 router.post('/register', async (req: Request, res: Response) => {
   try {
-    const { email, password, confirmPassword } = req.body;
+    const { nome, email, password, confirmPassword, cidade, regiao } = req.body;
 
-    if (!email || !password || !confirmPassword) {
+    if (!nome || !email || !password || !confirmPassword || !cidade || !regiao) {
       return res.status(400).json({ error: 'Todos os campos são obrigatórios' });
     }
 
@@ -58,31 +69,41 @@ router.post('/register', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'A senha deve ter no mínimo 6 caracteres' });
     }
 
-    const existingUser = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    
-    if (existingUser.rows.length > 0) {
-      return res.status(400).json({ error: 'Email já cadastrado' });
+    const regioesDaCidade = Object.prototype.hasOwnProperty.call(CIDADES, cidade) ? CIDADES[cidade] : [];
+    if (!regioesDaCidade.includes(regiao)) {
+      return res.status(400).json({ error: 'Cidade ou região inválida' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const id = Math.random().toString(36).substr(2, 9);
+    const senhaHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-    await pool.query(
-      'INSERT INTO users (id, email, password_hash) VALUES ($1, $2, $3)',
-      [id, email, hashedPassword]
+    const result = await pool.query<Usuario>(
+      `INSERT INTO usuarios (nome, email, senha_hash, perfil, cidade, regiao)
+       VALUES ($1, $2, $3, 'USUARIO', $4, $5)
+       RETURNING id, nome, email, perfil`,
+      [String(nome).trim(), normalizarEmail(email), senhaHash, cidade, regiao]
     );
 
-    const token = jwt.sign(
-      { userId: id, email } as JWTPayload,
-      process.env.JWT_SECRET || 'secret',
-      { expiresIn: '24h' }
-    );
+    const novo = result.rows[0];
+    const token = gerarToken(novo.id, novo.email, novo.perfil);
 
-    res.status(201).json({ token, user: { id, email } });
-  } catch (error) {
+    res.status(201).json({
+      token,
+      user: { id: novo.id, nome: novo.nome, email: novo.email, perfil: novo.perfil },
+    });
+  } catch (error: any) {
+    if (error?.code === '23505') {
+      return res.status(400).json({ error: 'Email já cadastrado' });
+    }
     console.error(error);
     res.status(500).json({ error: 'Erro ao registrar' });
   }
+});
+
+// Esqueci minha senha (ainda sem envio de e-mail): resposta genérica
+router.post('/esqueci-senha', (req: Request, res: Response) => {
+  res.json({
+    message: 'Se o e-mail estiver cadastrado, você receberá instruções para redefinir sua senha.',
+  });
 });
 
 export default router;

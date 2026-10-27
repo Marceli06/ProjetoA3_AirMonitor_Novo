@@ -1,11 +1,20 @@
-﻿export interface User {
-  id: string;
+﻿export type Perfil = 'ADMIN' | 'USUARIO';
+
+export interface Usuario {
+  id: number;
+  nome: string;
   email: string;
-  password_hash: string;
-  created_at: Date;
+  senha_hash: string;
+  perfil: Perfil;
+  ativo: boolean;
+  cidade: string | null;
+  regiao: string | null;
+  criado_em: Date;
+  atualizado_em: Date;
 }
 
 export interface JWTPayload {
-  userId: string;
+  userId: number;
   email: string;
+  perfil: Perfil;
 }
