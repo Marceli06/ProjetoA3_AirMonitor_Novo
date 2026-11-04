@@ -94,3 +94,62 @@ export interface UltimasMedicoesArResponse {
   statusFontes: StatusFontesAr;
   atribuicoes: string[];
 }
+
+// ---- Painel administrativo (respostas de /api/admin)
+export interface ResumoUsuarios {
+  total: number;
+  ativos: number;
+  inativos: number;
+  administradores: number;
+  usuariosComuns: number;
+  semCidade: number;
+}
+
+export interface UsuariosPorCidade {
+  cidade: string;
+  total: number;
+  ativos: number;
+}
+
+export interface ResumoAdminResponse {
+  usuarios: ResumoUsuarios;
+  porCidade: UsuariosPorCidade[];
+  geradoEm: string;
+}
+
+export type SituacaoDados = 'ATUALIZADA' | 'DESATUALIZADA' | 'SEM_MEDICAO';
+
+export interface EstacaoAdmin {
+  id: number;
+  nome: string | null;
+  localidade: string | null;
+  pais: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  distanciaMetros: number | null;
+  poluentes: { chave: string; nome: string; unidade: string }[];
+  ultimaMedicaoEm: string | null;
+  situacao: SituacaoDados;
+  fonte: 'OpenAQ';
+}
+
+export interface EstacoesAdminResponse {
+  cidade: string;
+  total: number;
+  estacoes: EstacaoAdmin[];
+  mensagem: string | null;
+  fonte: 'OpenAQ';
+}
+
+export interface ConfiguracoesSistema {
+  sistema: { nome: string; ambiente: string };
+  banco: { tipo: string; conectado: boolean };
+  integracoes: {
+    openaq: { funcao: string; configurada: boolean; exigeChave: boolean; host: string | null; timeoutMs: number };
+    openMeteo: { funcao: string; disponivel: boolean; exigeChave: boolean; host: string | null; timeoutMs: number; licenca: string };
+  };
+  cache: { estacoesMs: number; ultimasMedicoesMs: number; openMeteoMs: number };
+  parametros: { defasagemHoras: number };
+  cidades: string[];
+  geradoEm: string;
+}

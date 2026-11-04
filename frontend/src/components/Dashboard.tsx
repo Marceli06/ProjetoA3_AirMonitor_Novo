@@ -1,8 +1,13 @@
 ﻿import { useState } from 'react';
 import UsersPage from './UsersPage';
+import StationsPage from './StationsPage';
+import SettingsPage from './SettingsPage';
+import ReportsPage from './ReportsPage';
+import { AdminStationSummary, AdminUserStats } from './AdminWidgets';
 import { CITIES } from './Register';
 import { CIDADE_PADRAO, lerUsuarioLogado, useQualidadeAr } from '../hooks/useQualidadeAr';
 import { MedicaoAr } from '../types';
+import { POLLUTANTS, ROTULO_FONTE, formatarDataHora, formatarDistancia, formatarValor } from '../utils/formatar';
 import './Dashboard.css';
 
 export type UserRole = 'admin' | 'user';
@@ -59,27 +64,7 @@ const ADMIN_MENU: { label: string; icon: IconName }[] = [
   { label: 'Relatórios', icon: 'file' },
 ];
 
-// Apenas nome/descrição de cada poluente: valores, unidades e fontes vêm do backend (/api/air-quality)
-const POLLUTANTS = [
-  { chave: 'pm25', name: 'PM2.5', desc: 'Material particulado fino' },
-  { chave: 'pm10', name: 'PM10', desc: 'Material particulado' },
-  { chave: 'o3', name: 'O₃', desc: 'Ozônio' },
-  { chave: 'no2', name: 'NO₂', desc: 'Dióxido de nitrogênio' },
-  { chave: 'co', name: 'CO', desc: 'Monóxido de carbono' },
-  { chave: 'so2', name: 'SO₂', desc: 'Dióxido de enxofre' },
-];
-
 const CIDADES = Object.keys(CITIES);
-
-const ROTULO_FONTE = { OPENAQ: 'Medição de estação', OPEN_METEO: 'Estimativa por modelo' } as const;
-
-const formatarDataHora = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
-
-const formatarValor = (valor: number) => valor.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
-
-const formatarDistancia = (metros: number | null) =>
-  metros === null ? null : `${(metros / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km`;
 
 const RANGE_TABS = ['IQA', 'PM2.5', 'PM10', 'O₃', 'NO₂', 'CO', 'SO₂'];
 
@@ -105,10 +90,10 @@ const MY_OCCURRENCES = [
 ];
 
 const ADMIN_QUICK = [
-  { title: 'Gerenciar usuários', text: 'Cadastrar e editar usuários do sistema', icon: 'users' as IconName },
-  { title: 'Configurar estações', text: 'Gerenciar estações de monitoramento', icon: 'antenna' as IconName },
-  { title: 'Gerar relatórios', text: 'Emitir relatórios e análises de dados', icon: 'file' as IconName },
-  { title: 'Configurações', text: 'Ajustes gerais do sistema', icon: 'gear' as IconName },
+  { title: 'Gerenciar usuários', text: 'Cadastrar e editar usuários do sistema', icon: 'users' as IconName, menu: 'Usuários' },
+  { title: 'Consultar estações', text: 'Estações obtidas das APIs ambientais', icon: 'antenna' as IconName, menu: 'Estações' },
+  { title: 'Ver relatórios', text: 'Resumo de usuários e da qualidade do ar', icon: 'file' as IconName, menu: 'Relatórios' },
+  { title: 'Configurações', text: 'Informações do sistema e das integrações', icon: 'gear' as IconName, menu: 'Configurações' },
 ];
 
 const toneIcon = (tone: string): IconName => (tone === 'ok' ? 'check' : tone === 'info' ? 'info' : 'warning');
@@ -206,8 +191,14 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
         </header>
 
         <main className="dash-main">
-          {activeMenu === 'Usuários' && isAdmin ? (
+          {isAdmin && activeMenu === 'Usuários' ? (
             <UsersPage />
+          ) : isAdmin && activeMenu === 'Estações' ? (
+            <StationsPage cidades={CIDADES} cidade={region} onCidadeChange={setRegion} />
+          ) : isAdmin && activeMenu === 'Configurações' ? (
+            <SettingsPage />
+          ) : isAdmin && activeMenu === 'Relatórios' ? (
+            <ReportsPage cidades={CIDADES} cidade={region} onCidadeChange={setRegion} qualidade={qualidade} />
           ) : activeMenu !== 'Dashboard' ? (
             <section className="dash-card">
               <h2>{activeMenu}</h2>
@@ -239,6 +230,8 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
               </div>
             </div>
           </section>
+
+          {isAdmin && <AdminUserStats />}
 
           <div className="dash-row dash-row-top">
             <section className="dash-card dash-quality">
@@ -304,25 +297,27 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
             <section className="dash-card dash-station">
               <div className="card-head">
                 <h2>{isAdmin ? 'Estações de monitoramento' : 'Estação mais próxima'}</h2>
-                <a href="#">Ver todas <Icon name="arrow" /></a>
+                <a
+                  href="#"
+                  onClick={isAdmin ? (e) => { e.preventDefault(); setActiveMenu('Estações'); } : undefined}
+                >
+                  Ver todas <Icon name="arrow" />
+                </a>
               </div>
-              <div className="map">
-                <span className="map-label" style={{ left: '8%', top: '18%' }}>{isAdmin ? 'Osasco' : 'Itaquera'}</span>
-                <span className="map-label" style={{ left: '62%', top: '14%' }}>{isAdmin ? 'Guarulhos' : 'Guaianazes'}</span>
-                <span className="map-label" style={{ left: '40%', top: '52%' }}>{isAdmin ? 'São Paulo' : 'São Mateus'}</span>
-                {isAdmin && <span className="map-label" style={{ left: '72%', top: '72%' }}>Santo André</span>}
-                <span className="map-pin" style={{ left: '44%', top: '40%' }}><Icon name="pin" /></span>
-                {isAdmin && (
-                  <>
-                    <span className="map-pin pin-b" style={{ left: '22%', top: '62%' }}><Icon name="pin" /></span>
-                    <span className="map-pin pin-b" style={{ left: '56%', top: '28%' }}><Icon name="pin" /></span>
-                  </>
-                )}
-              </div>
+              {isAdmin ? (
+                <AdminStationSummary cidade={region} />
+              ) : (
+                <div className="map">
+                  <span className="map-label" style={{ left: '8%', top: '18%' }}>Itaquera</span>
+                  <span className="map-label" style={{ left: '62%', top: '14%' }}>Guaianazes</span>
+                  <span className="map-label" style={{ left: '40%', top: '52%' }}>São Mateus</span>
+                  <span className="map-pin" style={{ left: '44%', top: '40%' }}><Icon name="pin" /></span>
+                </div>
+              )}
               <div className="station-info">
                 <div>
                   <strong>{qualidade.estacao ? qualidade.estacao.nome || `Estação ${qualidade.estacao.id}` : qualidade.loading ? 'Carregando…' : 'Sem estação'}</strong>
-                  <small>{qualidade.estacao?.localidade || region}</small>
+                  <small>{isAdmin && 'Estação usada nos poluentes · '}{qualidade.estacao?.localidade || region}</small>
                 </div>
                 {isAdmin ? (
                   qualidade.statusFontes && (
@@ -358,6 +353,7 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
               <div className="chart-axis">
                 {HISTORY.map((_, i) => (i % 2 === 0 ? <span key={i}>{String(i).padStart(2, '0')}h</span> : null))}
               </div>
+              {isAdmin && <p className="quality-note">Dados ilustrativos: o histórico real será entregue na etapa de Histórico.</p>}
             </section>
 
             <section className="dash-card dash-alerts">
@@ -375,6 +371,7 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
                   <span className="item-date">{a.date}</span>
                 </div>
               ))}
+              {isAdmin && <p className="quality-note">Alertas ilustrativos: os alertas reais serão entregues na etapa de Alertas.</p>}
             </section>
 
             {!isAdmin && (
@@ -408,7 +405,7 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
                     key={q.title}
                     type="button"
                     className="quick-item"
-                    onClick={() => q.title === 'Gerenciar usuários' && setActiveMenu('Usuários')}
+                    onClick={() => setActiveMenu(q.menu)}
                   >
                     <span className="item-icon tone-info"><Icon name={q.icon} /></span>
                     <div className="item-body">

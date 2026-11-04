@@ -1,5 +1,6 @@
 ﻿import axios from 'axios';
-import { EstacoesArResponse, UltimasMedicoesArResponse, RegisterPayload, UsuarioAdmin, DadosUsuarioForm, NovoUsuarioData } from './types';
+import { EstacoesArResponse, UltimasMedicoesArResponse, RegisterPayload, UsuarioAdmin, DadosUsuarioForm, NovoUsuarioData,
+  ResumoAdminResponse, ConfiguracoesSistema, EstacoesAdminResponse } from './types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -33,6 +34,10 @@ export const adminAPI = {
     api.put<UsuarioAdmin>(`/admin/usuarios/${id}`, dados),
   alterarStatus: (id: number, ativo: boolean) =>
     api.patch<UsuarioAdmin>(`/admin/usuarios/${id}/status`, { ativo }),
+  resumo: () => api.get<ResumoAdminResponse>('/admin/resumo'),
+  configuracoes: () => api.get<ConfiguracoesSistema>('/admin/configuracoes'),
+  estacoes: (cidade: string, limite = 20) =>
+    api.get<EstacoesAdminResponse>('/admin/estacoes', { params: { cidade, limite } }),
 };
 
 export const airQualityAPI = {
