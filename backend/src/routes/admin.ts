@@ -3,6 +3,10 @@ import bcrypt from 'bcryptjs';
 import pool from '../database';
 import { authMiddleware, requireAdmin } from '../middlewares';
 import { CIDADES } from '../data/cidades';
+import { COORDENADAS_CIDADES } from '../data/cidadesCoordenadas';
+import { buscarEstacoes } from '../services/airQuality';
+import { obterConfiguracoes, obterResumoUsuarios, resumirEstacao } from '../services/adminDashboard';
+import { RAIO_MAXIMO_M, responderErro } from './airQuality';
 
 const router = Router();
 const SALT_ROUNDS = 12;
@@ -144,6 +148,59 @@ router.patch('/usuarios/:id/status', async (req: Request, res: Response) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Erro ao alterar status do usuário' });
+  }
+});
+
+// Contadores reais de usuários (banco), usados pelo Dashboard Admin e pelos Relatórios
+router.get('/resumo', async (req: Request, res: Response) => {
+  try {
+    res.json(await obterResumoUsuarios());
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao obter o resumo de usuários' });
+  }
+});
+
+// Informações do sistema em modo leitura. Nunca inclui chaves, JWT_SECRET, DATABASE_URL, senhas ou tokens
+router.get('/configuracoes', async (req: Request, res: Response) => {
+  try {
+    res.json(await obterConfiguracoes());
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao obter as configurações do sistema' });
+  }
+});
+
+const LIMITE_ESTACOES_PADRAO = 20;
+const LIMITE_ESTACOES_MAXIMO = 50;
+
+// Estações devolvidas pela OpenAQ para uma das cidades suportadas (não há cadastro manual de estações)
+// GET /api/admin/estacoes?cidade=São Paulo&limite=20
+router.get('/estacoes', async (req: Request, res: Response) => {
+  const { cidade, limite } = req.query;
+
+  const centro = typeof cidade === 'string' && Object.prototype.hasOwnProperty.call(COORDENADAS_CIDADES, cidade)
+    ? COORDENADAS_CIDADES[cidade]
+    : null;
+  if (!centro) return res.status(400).json({ error: 'Cidade inválida' });
+
+  const limiteEstacoes = limite === undefined ? LIMITE_ESTACOES_PADRAO : typeof limite === 'string' && limite.trim() !== '' ? Number(limite) : NaN;
+  if (!Number.isInteger(limiteEstacoes) || limiteEstacoes < 1 || limiteEstacoes > LIMITE_ESTACOES_MAXIMO) {
+    return res.status(400).json({ error: `"limite" deve ser um inteiro entre 1 e ${LIMITE_ESTACOES_MAXIMO}` });
+  }
+
+  try {
+    const estacoes = await buscarEstacoes({ ...centro, raioMetros: RAIO_MAXIMO_M, limite: limiteEstacoes });
+    res.json({
+      cidade,
+      origem: { ...centro, raioMetros: RAIO_MAXIMO_M },
+      total: estacoes.length,
+      estacoes: estacoes.map(resumirEstacao),
+      mensagem: estacoes.length === 0 ? 'Nenhuma estação com os poluentes monitorados foi encontrada perto desta cidade' : null,
+      fonte: 'OpenAQ',
+    });
+  } catch (error) {
+    responderErro(res, error);
   }
 });
 

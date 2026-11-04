@@ -27,9 +27,9 @@ const DEFAULT_BASE_URL = 'https://api.openaq.org/v3';
 const DEFAULT_TIMEOUT_MS = 8000;
 
 // Lidos a cada chamada (e não na importação) para respeitar o .env carregado depois dos imports
-const baseUrl = () => (process.env.OPENAQ_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, '');
+export const baseUrl = () => (process.env.OPENAQ_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, '');
 
-const timeoutMs = () => {
+export const timeoutMs = () => {
   const valor = Number(process.env.OPENAQ_TIMEOUT_MS);
   return Number.isFinite(valor) && valor > 0 ? valor : DEFAULT_TIMEOUT_MS;
 };

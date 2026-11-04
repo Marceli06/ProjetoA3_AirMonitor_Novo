@@ -6,12 +6,12 @@ import { mapOpenMeteo } from '../integrations/openmeteo/mapper';
 import { comCache } from './cache';
 import { ResultadoOpenMeteo, UltimasMedicoesConsolidadas, consolidar, consolidarSemOpenAQ, precisaDeFallback } from './consolidador';
 
-const TTL_ESTACOES_MS = 10 * 60 * 1000;
-const TTL_ULTIMAS_MS = 2 * 60 * 1000;
+export const TTL_ESTACOES_MS = 10 * 60 * 1000;
+export const TTL_ULTIMAS_MS = 2 * 60 * 1000;
 // A Open-Meteo entrega o valor "atual" de um modelo (CAMS Global: grade ~45 km, passo de 3 h, interpolado a cada 1 h).
 // O dado muda no máximo de hora em hora e vale para toda a célula da grade, então 30 min poupa chamadas
 // sem deixar o valor mais de meia hora atrás do que a API entregaria.
-const TTL_OPEN_METEO_MS = 30 * 60 * 1000;
+export const TTL_OPEN_METEO_MS = 30 * 60 * 1000;
 // A OpenAQ não ordena por distância: busca-se o máximo e ordena-se aqui
 const LIMITE_BUSCA_OPENAQ = 100;
 

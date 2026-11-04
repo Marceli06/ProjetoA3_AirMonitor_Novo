@@ -7,7 +7,7 @@ import { COORDENADAS_CIDADES } from '../data/cidadesCoordenadas';
 const router = Router();
 
 const RAIO_PADRAO_M = 10000;
-const RAIO_MAXIMO_M = 25000; // limite da OpenAQ
+export const RAIO_MAXIMO_M = 25000; // limite da OpenAQ
 const LIMITE_PADRAO = 20;
 const LIMITE_MAXIMO = 100;
 
@@ -16,7 +16,7 @@ router.use(authMiddleware);
 
 // Traduz a falha da integração no HTTP do AirMonitor, sem repassar o corpo bruto da OpenAQ.
 // Um 401 da OpenAQ vira 502: é problema de configuração do servidor, não do login do usuário.
-const responderErro = (res: Response, error: unknown) => {
+export const responderErro = (res: Response, error: unknown) => {
   if (!(error instanceof OpenAQError)) {
     console.error(error);
     return res.status(500).json({ error: 'Erro ao consultar a qualidade do ar' });

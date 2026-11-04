@@ -23,9 +23,9 @@ const DEFAULT_TIMEOUT_MS = 5000;
 const VARIAVEIS = ['pm2_5', 'pm10', 'ozone', 'nitrogen_dioxide', 'carbon_monoxide', 'sulphur_dioxide'];
 
 // Lidos a cada chamada para respeitar o .env carregado depois dos imports
-const baseUrl = () => (process.env.OPEN_METEO_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, '');
+export const baseUrl = () => (process.env.OPEN_METEO_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, '');
 
-const timeoutMs = () => {
+export const timeoutMs = () => {
   const valor = Number(process.env.OPEN_METEO_TIMEOUT_MS);
   return Number.isFinite(valor) && valor > 0 ? valor : DEFAULT_TIMEOUT_MS;
 };
