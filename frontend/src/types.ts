@@ -3,6 +3,19 @@
   email: string;
 }
 
+export interface UsuarioLogado {
+  id: number;
+  nome: string;
+  email: string;
+  perfil: 'ADMIN' | 'USUARIO';
+  cidade: string | null;
+  regiao: string | null;
+}
+
+export interface SessaoResponse {
+  user: UsuarioLogado;
+}
+
 export interface AuthResponse {
   token: string;
   user: User;

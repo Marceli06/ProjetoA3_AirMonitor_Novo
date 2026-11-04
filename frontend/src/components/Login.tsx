@@ -8,9 +8,10 @@ interface LoginProps {
   onForgotPassword: () => void;
   onCreateAccount: () => void;
   onLogin: (role: UserRole, name: string) => void;
+  notice?: string;
 }
 
-export default function Login({ onForgotPassword, onCreateAccount, onLogin }: LoginProps) {
+export default function Login({ onForgotPassword, onCreateAccount, onLogin, notice }: LoginProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -78,6 +79,7 @@ export default function Login({ onForgotPassword, onCreateAccount, onLogin }: Lo
             <p className="subtitle">Monitore a qualidade do ar da sua região</p>
           </div>
 
+          {notice && !error && <div className="info-message" role="status">{notice}</div>}
           {error && <div className="error-message">{error}</div>}
 
           <form onSubmit={handleLogin} className="form">

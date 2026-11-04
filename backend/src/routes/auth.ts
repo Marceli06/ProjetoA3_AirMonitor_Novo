@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import pool from '../database';
 import { Usuario, JWTPayload, Perfil } from '../types';
 import { CIDADES } from '../data/cidades';
+import { authMiddleware } from '../middlewares';
 
 const router = Router();
 const SALT_ROUNDS = 12;
@@ -49,6 +50,27 @@ router.post('/login', async (req: Request, res: Response) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Erro ao fazer login' });
+  }
+});
+
+// Valida a sessão e devolve o usuário vigente. O authMiddleware já responde 401 para token inválido/expirado
+// e para usuário inexistente ou desativado; o perfil devolvido vem do banco, nunca do token
+router.get('/me', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const result = await pool.query<Pick<Usuario, 'id' | 'nome' | 'email' | 'perfil' | 'cidade' | 'regiao'>>(
+      'SELECT id, nome, email, perfil, cidade, regiao FROM usuarios WHERE id = $1',
+      [req.user!.userId]
+    );
+    const usuario = result.rows[0];
+
+    if (!usuario) {
+      return res.status(401).json({ error: 'Usuário inexistente ou inativo' });
+    }
+
+    res.json({ user: usuario });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao validar a sessão' });
   }
 });
 

@@ -25,6 +25,12 @@ body {
   flex-direction: column;
 }
 
+.session-check {
+  margin: auto;
+  color: #5b6470;
+  font-size: 0.95rem;
+}
+
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
 }

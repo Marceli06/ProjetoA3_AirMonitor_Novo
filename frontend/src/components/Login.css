@@ -134,6 +134,15 @@ body {
   text-align: center;
 }
 
+.info-message {
+  background-color: #eaf4ff;
+  color: #1a5a8a;
+  padding: 0.6rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
 /* Form */
 .form {
   display: flex;
