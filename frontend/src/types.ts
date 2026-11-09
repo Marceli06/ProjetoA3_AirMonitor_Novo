@@ -166,3 +166,26 @@ export interface ConfiguracoesSistema {
   cidades: string[];
   geradoEm: string;
 }
+
+// Alertas de qualidade do ar. Nesta etapa são ILUSTRATIVOS (utils/alertas.ts): ainda não há geração automática,
+// limiares definitivos nem persistência. A origem usa os mesmos conceitos do Dashboard (OpenAQ = medição de
+// estação; Open-Meteo = estimativa por modelo).
+export type NivelAlerta = 'BAIXO' | 'MODERADO' | 'ALTO' | 'CRITICO';
+export type StatusAlerta = 'ATIVO' | 'RESOLVIDO';
+export type OrigemAlerta = 'OPENAQ' | 'OPEN_METEO';
+
+export interface AlertaAr {
+  id: string;
+  poluente: string; // chave do poluente: pm25, pm10, o3, no2, co, so2
+  titulo: string;
+  descricao: string;
+  detalhe: string;
+  valor: number;
+  unidade: string;
+  nivel: NivelAlerta;
+  status: StatusAlerta;
+  cidade: string;
+  estacao: string;
+  dataHora: string;
+  origem: OrigemAlerta;
+}
