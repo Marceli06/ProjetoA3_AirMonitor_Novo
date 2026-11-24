@@ -132,7 +132,7 @@ async function loginPelaTela(email, senha) {
   await esperar(`!!document.querySelector('input[name="email"]')`, 15000, 'formulário de login');
   await digitar('input[name="email"]', email);
   await digitar('input[name="password"]', senha);
-  await avaliar(`document.querySelector('form button[type="submit"], form .login-button, form button').click()`);
+  await avaliar(`document.querySelector('form').requestSubmit()`);
 }
 const dashboardAberto = () => esperar(`!!document.querySelector('.dash-main h1')`, 20000, 'Dashboard aberto');
 const cardsPoluentes = () => avaliar(`[...document.querySelectorAll('.pollutant')].map(c => ({
@@ -179,7 +179,7 @@ async function http(caminho, { token, corpo } = {}) {
   return { status: res.status, json };
 }
 async function criarUsuario(rotulo, cidade) {
-  const email = `tmp.ui.${rotulo}.${Date.now()}@example.com`;
+  const email = `tmp.ui.${rotulo}.${Date.now()}@example.com`.toLowerCase(); // o cadastro normaliza o e-mail em minúsculas
   const senha = `Tmp-${Math.random().toString(36).slice(2)}-7`;
   emails.push(email);
   const r = await http('/auth/register', { corpo: { nome: `Teste UI ${rotulo}`, email, password: senha, confirmPassword: senha, cidade, regiao: 'Centro' } });
@@ -250,7 +250,7 @@ try {
   await aguardarCarga().catch(() => {});
 
   await caso('UI-04/05', 'Estação mais próxima escolhida automaticamente e GET /air-quality/locations real (200)', async () => {
-    const r = requisicoes.find((x) => /\/air-quality\/locations\?/.test(x.url));
+    const r = requisicoes.find((x) => x.method !== 'OPTIONS' && /\/air-quality\/locations\?/.test(x.url)); // ignora o preflight CORS (204)
     afirmar(r, 'a tela não chamou GET /air-quality/locations');
     const u = new URL(r.url);
     afirmar(u.searchParams.get('cidade') === 'São Paulo' && u.searchParams.get('limite') === '1', `parâmetros inesperados: ${u.search}`);
@@ -263,7 +263,7 @@ try {
   });
 
   await caso('UI-06', 'GET /air-quality/locations/:id/latest real (200) usando o ID da estação escolhida', async () => {
-    const r = requisicoes.find((x) => /\/air-quality\/locations\/\d+\/latest/.test(x.url));
+    const r = requisicoes.find((x) => x.method !== 'OPTIONS' && /\/air-quality\/locations\/\d+\/latest/.test(x.url));
     afirmar(r, 'a tela não chamou /latest');
     afirmar(r.url.includes(`/locations/${idEstacao}/latest`), `chamou ${r.url}, esperado id ${idEstacao}`);
     afirmar(r.status === 200, `status ${r.status}`);
@@ -354,8 +354,10 @@ try {
     const attr = await textos('.air-attribution');
     afirmar(attr.length === 0, `atribuição indevida: ${JSON.stringify(attr)}`);
     const cards = await cardsPoluentes();
-    afirmar(cards.every((c) => c.rotulo === 'Medição de estação'), `rótulos: ${cards.map((c) => c.rotulo)}`);
-    return 'sem atribuição; 6 cards como "Medição de estação"';
+    // A fixture não traz sensor de todos os poluentes: o poluente sem dado aparece como "Sem dados disponíveis", nunca como medição
+    afirmar(cards.every((c) => c.rotulo === 'Medição de estação' || (c.rotulo === 'Sem dados disponíveis' && c.valor === null)), `rótulos: ${cards.map((c) => c.rotulo)}`);
+    afirmar(cards.some((c) => c.rotulo === 'Medição de estação'), 'nenhum card de medição de estação');
+    return 'sem atribuição; cards como "Medição de estação" ou "Sem dados disponíveis"';
   });
 
   await caso('UI-11b', 'Tudo indisponível: 6× "Sem dados disponíveis", nenhum zero, data "—" (fixture)', async () => {
@@ -419,7 +421,12 @@ try {
 
   await caso('UI-18e', 'Token inválido/expirado/usuário desativado (401): volta ao login com aviso, sessão limpa (fixture)', async () => {
     rota = (r) => (r.tipo === 'locations' ? { status: 401, corpo: { error: 'Token inválido' } } : null);
-    await loginPelaTela(userA.email, userA.senha); await dashboardAberto();
+    await loginPelaTela(userA.email, userA.senha);
+    // O Dashboard some em milissegundos assim que o 401 chega: espera o 401 em vez de esperar a tela do Dashboard
+    for (const limite = Date.now() + 15000; !requisicoes.some((x) => x.method !== 'OPTIONS' && /\/air-quality\/locations\?/.test(x.url) && x.status === 401); ) {
+      if (Date.now() > limite) throw new Error('a chamada de estações não recebeu o 401 da fixture');
+      await dormir(100);
+    }
     await esperar(`!!document.querySelector('input[name="email"]')`, 8000, 'voltar para a tela de login');
     const limpo = await avaliar(`!localStorage.getItem('authToken') && !localStorage.getItem('user')`);
     afirmar(limpo, 'sessão não foi limpa');

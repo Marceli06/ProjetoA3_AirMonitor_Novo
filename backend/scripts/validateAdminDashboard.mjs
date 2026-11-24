@@ -622,10 +622,12 @@ async function main() {
       await foto('04-relatorios');
       return `contadores=${v}`;
     });
-    await caso('B11', 'Alertas, Ocorrências e Histórico seguem como placeholders (navegação funcionando)', async () => {
-      for (const m of ['Alertas', 'Ocorrências', 'Histórico']) {
+    await caso('B11', 'Histórico segue placeholder; Alertas e Ocorrências abrem as telas implementadas (navegação funcionando)', async () => {
+      afirmar(await clicarMenu('Histórico'), 'menu Histórico');
+      await esperar(`/Esta tela ainda não foi implementada/.test(document.querySelector('.dash-main').innerText) && document.querySelector('.dash-main h2').innerText.trim() === 'Histórico'`, 5000, 'placeholder Histórico');
+      for (const [m, titulo] of [['Alertas', 'Alertas de Qualidade do Ar'], ['Ocorrências', 'Ocorrências Ambientais']]) {
         afirmar(await clicarMenu(m), 'menu ' + m);
-        await esperar(`/Esta tela ainda não foi implementada/.test(document.querySelector('.dash-main').innerText) && document.querySelector('.dash-main h2').innerText.trim() === ${JSON.stringify(m)}`, 5000, 'placeholder ' + m);
+        await esperar(`document.querySelector('.dash-main h1')?.innerText.trim() === ${JSON.stringify(titulo)}`, 8000, 'tela ' + m);
       }
     });
     await caso('B12', 'Acesso rápido do Dashboard Admin navega para Usuários, Estações, Relatórios e Configurações', async () => {
