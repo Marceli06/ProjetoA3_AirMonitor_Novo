@@ -1,28 +1,38 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
+import axios from 'axios';
 import Icon, { IconName } from './Icon';
-import { AlertaAr, NivelAlerta } from '../types';
-import { POLLUTANTS, ROTULO_FONTE, formatarDataHora } from '../utils/formatar';
+import CidadeEData from './CidadeEData';
+import DetailDrawer from './DetailDrawer';
+import { alertasAPI } from '../api';
+import { AlertaAr, ListaAlertasResponse, NivelAlerta } from '../types';
+import { NOME_FONTE, POLLUTANTS, formatarDataHora } from '../utils/formatar';
 import {
   FiltroStatus,
   NIVEIS_ORDEM,
   ROTULO_NIVEL,
   ROTULO_STATUS,
-  filtrarAlertas,
   formatarValorAlerta,
-  gerarAlertasIlustrativos,
-  ordenarAlertas,
+  nomeDaEstacaoDoAlerta,
+  nomePoluente,
   resumirAlertas,
+  rotuloOrigem,
+  rotuloValor,
   tempoRelativo,
   tomDoAlerta,
 } from '../utils/alertas';
-import { CITIES } from './Register';
+import './Severidade.css';
 import './AlertsPage.css';
 
 interface AlertsPageProps {
   cidades: string[]; // ADMIN: todas as cidades suportadas; USUARIO: somente a própria
   cidade: string;
   onCidadeChange: (cidade: string) => void;
+  isAdmin: boolean; // só controla a exibição das ações; o backend é quem autoriza (403 para não ADMIN)
 }
+
+const LIMITE_POR_PAGINA = 10;
+// A API devolve no máximo 200 por consulta: alertas ativos são poucos (no máximo 1 por estação e poluente)
+const LIMITE_ATIVOS_RESUMO = 200;
 
 const FILTROS_STATUS: { valor: FiltroStatus; rotulo: string }[] = [
   { valor: 'TODOS', rotulo: 'Todos' },
@@ -39,9 +49,13 @@ const TITULO_SITUACAO: Record<NivelAlerta, string> = {
   CRITICO: 'Atenção: nível crítico',
 };
 
-const nomePoluente = (chave: string) => POLLUTANTS.find((p) => p.chave === chave)?.name ?? chave.toUpperCase();
-
 const plural = (n: number, singular: string, pluralTxt: string) => `${n} ${n === 1 ? singular : pluralTxt}`;
+
+interface DadosResumo {
+  ativos: AlertaAr[];
+  totalAtivos: number;
+  totalResolvidos: number;
+}
 
 function NivelBadge({ alerta }: { alerta: AlertaAr }) {
   return (
@@ -61,65 +75,184 @@ function StatusBadge({ status }: { status: AlertaAr['status'] }) {
   );
 }
 
-export default function AlertsPage({ cidades, cidade, onCidadeChange }: AlertsPageProps) {
+export default function AlertsPage({ cidades, cidade, onCidadeChange, isAdmin }: AlertsPageProps) {
   const [status, setStatus] = useState<FiltroStatus>('TODOS');
-  const [niveis, setNiveis] = useState<NivelAlerta[]>([]);
-  const [selecionadoId, setSelecionadoId] = useState<string | null>(null);
-  const botaoFecharRef = useRef<HTMLButtonElement>(null);
-  const origemFocoRef = useRef<HTMLElement | null>(null);
+  const [nivel, setNivel] = useState<NivelAlerta | null>(null);
+  const [poluente, setPoluente] = useState('');
+  const [pagina, setPagina] = useState(1);
+  const [selecionado, setSelecionado] = useState<AlertaAr | null>(null);
 
-  // Hora da "última atualização": renova a cada troca de cidade
-  const agora = useMemo(() => new Date(), [cidade]);
+  const [lista, setLista] = useState<ListaAlertasResponse | null>(null);
+  const [carregandoLista, setCarregandoLista] = useState(true);
+  const [erroLista, setErroLista] = useState(false);
+  const [dadosResumo, setDadosResumo] = useState<DadosResumo | null>(null);
+  const [erroResumo, setErroResumo] = useState(false);
+  const [atualizadoEm, setAtualizadoEm] = useState(() => new Date());
+  const [recarga, setRecarga] = useState(0);
 
-  const todos = useMemo(() => ordenarAlertas(gerarAlertasIlustrativos(cidade, CITIES[cidade] ?? [], agora)), [cidade, agora]);
-  const resumo = useMemo(() => resumirAlertas(todos), [todos]);
-  const visiveis = useMemo(() => filtrarAlertas(todos, status, niveis), [todos, status, niveis]);
-  const selecionado = todos.find((a) => a.id === selecionadoId) ?? null;
+  const [avaliando, setAvaliando] = useState(false);
+  const [aviso, setAviso] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
+  const [confirmandoResolver, setConfirmandoResolver] = useState(false);
+  const [resolvendo, setResolvendo] = useState(false);
+  const [erroResolver, setErroResolver] = useState<string | null>(null);
 
-  const filtrosAtivos = status !== 'TODOS' || niveis.length > 0;
-  const podeEscolherCidade = cidades.length > 1;
+  // Trocar de cidade volta à primeira página e fecha o detalhe (os filtros escolhidos continuam)
+  const [cidadeAtual, setCidadeAtual] = useState(cidade);
+  if (cidadeAtual !== cidade) {
+    setCidadeAtual(cidade);
+    setDadosResumo(null);
+    setLista(null);
+    setPagina(1);
+    setSelecionado(null);
+    setAviso(null);
+  }
+
+  const recarregar = () => setRecarga((n) => n + 1);
+
+  // Página de alertas: filtros e paginação são feitos pelo backend
+  useEffect(() => {
+    const controle = new AbortController();
+    setCarregandoLista(true);
+    setErroLista(false);
+    alertasAPI
+      .listar(
+        {
+          cidade,
+          status: status === 'TODOS' ? undefined : status,
+          nivel: nivel ?? undefined,
+          poluente: poluente || undefined,
+          limite: LIMITE_POR_PAGINA,
+          pagina,
+        },
+        controle.signal
+      )
+      .then(({ data }) => {
+        setLista(data);
+        setAtualizadoEm(new Date());
+        setCarregandoLista(false);
+      })
+      .catch(() => {
+        if (controle.signal.aborted) return;
+        setLista(null);
+        setErroLista(true);
+        setCarregandoLista(false);
+      });
+    return () => controle.abort();
+  }, [cidade, status, nivel, poluente, pagina, recarga]);
+
+  // Resumo da cidade (cartões e destaque): não depende dos filtros da lista
+  useEffect(() => {
+    const controle = new AbortController();
+    setErroResumo(false);
+    Promise.all([
+      alertasAPI.listar({ cidade, status: 'ATIVO', limite: LIMITE_ATIVOS_RESUMO }, controle.signal),
+      alertasAPI.listar({ cidade, status: 'RESOLVIDO', limite: 1 }, controle.signal),
+    ])
+      .then(([ativos, resolvidos]) =>
+        setDadosResumo({ ativos: ativos.data.alertas, totalAtivos: ativos.data.total, totalResolvidos: resolvidos.data.total })
+      )
+      .catch(() => {
+        if (controle.signal.aborted) return;
+        setDadosResumo(null);
+        setErroResumo(true);
+      });
+    return () => controle.abort();
+  }, [cidade, recarga]);
+
+  const total = lista?.total ?? 0;
+  const totalPaginas = Math.max(1, Math.ceil(total / LIMITE_POR_PAGINA));
+
+  // Se a página atual esvaziou (ex.: alerta resolvido com filtro "Ativos"), volta para a última existente
+  useEffect(() => {
+    if (lista && lista.alertas.length === 0 && lista.total > 0 && pagina > 1) setPagina(totalPaginas);
+  }, [lista, pagina, totalPaginas]);
+
+  const resumo = dadosResumo ? resumirAlertas(dadosResumo.ativos, dadosResumo.totalAtivos, dadosResumo.totalResolvidos) : null;
+  const erro = erroLista || erroResumo;
+  const alertas = lista?.alertas ?? [];
+  const filtrosAtivos = status !== 'TODOS' || nivel !== null || poluente !== '';
+  const semAlertaAtivo = resumo !== null && resumo.ativos === 0;
+  // "Nenhum alerta ativo" vale para a lista inteira vazia ou para o filtro "Ativos" sem outros filtros
+  const mensagemSemAtivo = total === 0 && nivel === null && poluente === '' && status !== 'RESOLVIDO';
 
   const abrir = (alerta: AlertaAr) => {
-    origemFocoRef.current = document.activeElement as HTMLElement | null;
-    setSelecionadoId(alerta.id);
+    setSelecionado(alerta);
+    setConfirmandoResolver(false);
+    setErroResolver(null);
   };
+  const fechar = () => setSelecionado(null);
 
-  const fechar = () => {
-    setSelecionadoId(null);
-    origemFocoRef.current?.focus();
+  const mudarStatus = (novo: FiltroStatus) => {
+    setStatus(novo);
+    setPagina(1);
   };
-
-  useEffect(() => {
-    if (!selecionado) return undefined;
-    botaoFecharRef.current?.focus();
-    const aoTeclar = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setSelecionadoId(null);
-        origemFocoRef.current?.focus();
-      }
-    };
-    document.addEventListener('keydown', aoTeclar);
-    return () => document.removeEventListener('keydown', aoTeclar);
-  }, [selecionado]);
-
-  const alternarNivel = (nivel: NivelAlerta) =>
-    setNiveis((atuais) => (atuais.includes(nivel) ? atuais.filter((n) => n !== nivel) : [...atuais, nivel]));
-
+  // A API filtra um nível por vez: clicar de novo no nível selecionado limpa o filtro
+  const alternarNivel = (novo: NivelAlerta) => {
+    setNivel((atual) => (atual === novo ? null : novo));
+    setPagina(1);
+  };
+  const mudarPoluente = (novo: string) => {
+    setPoluente(novo);
+    setPagina(1);
+  };
   const limparFiltros = () => {
     setStatus('TODOS');
-    setNiveis([]);
+    setNivel(null);
+    setPoluente('');
+    setPagina(1);
   };
 
-  const cartoes: { chave: string; rotulo: string; valor: number; nota: string; icone: IconName; tom: string }[] = [
-    { chave: 'ativos', rotulo: 'Alertas ativos', valor: resumo.ativos, nota: 'Em andamento agora', icone: 'bell', tom: 'ativos' },
-    { chave: 'alta', rotulo: 'Alta prioridade', valor: resumo.alta, nota: 'Níveis alto e crítico', icone: 'flame', tom: 'alta' },
-    { chave: 'media', rotulo: 'Média prioridade', valor: resumo.media, nota: 'Nível moderado', icone: 'warning', tom: 'media' },
-    { chave: 'resolvidos', rotulo: 'Resolvidos', valor: resumo.resolvidos, nota: 'Já normalizados', icone: 'check', tom: 'resolvidos' },
+  // Ações de ADMIN (o backend responde 403 para qualquer outro perfil, sem encerrar a sessão)
+  const avaliarAgora = async () => {
+    setAvaliando(true);
+    setAviso(null);
+    try {
+      const { data } = await alertasAPI.avaliar(cidade);
+      const c = data.contagem;
+      const falhas = data.falhas.length ? ` ${plural(data.falhas.length, 'estação com falha', 'estações com falha')}.` : '';
+      setAviso({
+        tipo: 'ok',
+        texto: `Avaliação concluída (${plural(data.estacoesAvaliadas, 'estação', 'estações')}): ${plural(c.criado, 'alerta criado', 'alertas criados')}, ${plural(c.atualizado, 'atualizado', 'atualizados')}, ${plural(c.resolvido, 'resolvido', 'resolvidos')}.${falhas}`,
+      });
+      recarregar();
+    } catch {
+      setAviso({ tipo: 'erro', texto: 'Não foi possível avaliar os dados agora. Tente novamente.' });
+    } finally {
+      setAvaliando(false);
+    }
+  };
+
+  const resolverAlerta = async () => {
+    if (!selecionado) return;
+    setResolvendo(true);
+    setErroResolver(null);
+    try {
+      const { data } = await alertasAPI.resolver(selecionado.id);
+      setSelecionado(data.alerta);
+      setConfirmandoResolver(false);
+      recarregar();
+    } catch (e) {
+      if (axios.isAxiosError<{ alerta?: AlertaAr }>(e) && e.response?.status === 409) {
+        // Já estava resolvido (outra pessoa ou a avaliação automática): só atualiza a tela
+        if (e.response.data?.alerta) setSelecionado(e.response.data.alerta);
+        setConfirmandoResolver(false);
+        recarregar();
+      } else {
+        setErroResolver('Não foi possível resolver o alerta. Tente novamente.');
+      }
+    } finally {
+      setResolvendo(false);
+    }
+  };
+
+  const cartoes: { chave: string; rotulo: string; valor: number | undefined; nota: string; icone: IconName; tom: string }[] = [
+    { chave: 'ativos', rotulo: 'Alertas ativos', valor: resumo?.ativos, nota: 'Em andamento agora', icone: 'bell', tom: 'ativos' },
+    { chave: 'alta', rotulo: 'Alta prioridade', valor: resumo?.alta, nota: 'Níveis alto e crítico', icone: 'flame', tom: 'alta' },
+    { chave: 'media', rotulo: 'Média prioridade', valor: resumo?.media, nota: 'Nível moderado', icone: 'warning', tom: 'media' },
+    { chave: 'resolvidos', rotulo: 'Resolvidos', valor: resumo?.resolvidos, nota: 'Já normalizados', icone: 'check', tom: 'resolvidos' },
   ];
 
-  const semAlertaAtivo = resumo.ativos === 0;
-  // Sem alerta ativo: vale tanto para a lista inteira vazia quanto para o filtro "Ativos"
-  const mensagemSemAtivo = semAlertaAtivo && status !== 'RESOLVIDO' && (status === 'ATIVO' || todos.length === 0);
+  const tomHero = !resumo ? 'resolvido' : semAlertaAtivo ? 'resolvido' : (resumo.maisGrave ?? 'BAIXO').toLowerCase();
 
   return (
     <div className="alerts-page">
@@ -128,53 +261,56 @@ export default function AlertsPage({ cidades, cidade, onCidadeChange }: AlertsPa
           <h1>Alertas de Qualidade do Ar</h1>
           <p>Acompanhe situações que podem exigir atenção na sua região.</p>
         </div>
-        <div className="dash-filters">
-          {podeEscolherCidade ? (
-            <label className="dash-select">
-              <Icon name="pin" />
-              <select aria-label="Cidade" value={cidade} onChange={(e) => onCidadeChange(e.target.value)}>
-                {cidades.map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
-              </select>
-              <Icon name="dropdown" />
-            </label>
-          ) : (
-            <div className="dash-select alerts-city-fixed" aria-label="Cidade">
-              <Icon name="pin" />
-              <strong>{cidade}</strong>
-            </div>
+        <div className="alerts-head-right">
+          <CidadeEData cidades={cidades} cidade={cidade} onCidadeChange={onCidadeChange} atualizadoEm={atualizadoEm} />
+          {isAdmin && (
+            <button type="button" className="alerts-eval" onClick={avaliarAgora} disabled={avaliando} data-testid="avaliar">
+              <Icon name="antenna" />
+              {avaliando ? 'Avaliando…' : 'Avaliar dados agora'}
+            </button>
           )}
-          <div className="dash-date">
-            <Icon name="calendar" />
-            <div>
-              <strong>{formatarDataHora(agora.toISOString())}</strong>
-              <small>Última atualização</small>
-            </div>
-          </div>
         </div>
       </section>
 
-      <section className={`alerts-hero ${semAlertaAtivo ? 'tom-resolvido' : `tom-${(resumo.maisGrave ?? 'BAIXO').toLowerCase()}`}`} aria-live="polite">
-        <span className="alerts-hero-icon"><Icon name={semAlertaAtivo ? 'shield' : ICONE_NIVEL[resumo.maisGrave ?? 'BAIXO']} /></span>
-        <div className="alerts-hero-text">
-          <strong>{semAlertaAtivo ? 'Situação sob controle' : TITULO_SITUACAO[resumo.maisGrave ?? 'BAIXO']}</strong>
-          <span>
-            {semAlertaAtivo
-              ? `Nenhum alerta ativo em ${cidade} neste momento.`
-              : `${plural(resumo.ativos, 'alerta ativo', 'alertas ativos')} em ${cidade}. Pessoas sensíveis devem redobrar a atenção.`}
+      {aviso && (
+        <p className={`alerts-aviso is-${aviso.tipo}`} role="status" data-testid="aviso-avaliacao">
+          {aviso.texto}
+        </p>
+      )}
+
+      {!erro && (
+        <section className={`alerts-hero tom-${tomHero}`} aria-live="polite">
+          <span className="alerts-hero-icon">
+            <Icon name={!resumo ? 'clock' : semAlertaAtivo ? 'shield' : ICONE_NIVEL[resumo.maisGrave ?? 'BAIXO']} />
           </span>
-        </div>
-        {!semAlertaAtivo && (
-          <div className="alerts-hero-levels" aria-label="Alertas ativos por nível">
-            {[...NIVEIS_ORDEM].reverse().filter((n) => resumo.ativosPorNivel[n] > 0).map((n) => (
-              <span key={n} className={`alerts-mini tom-${n.toLowerCase()}`}>
-                <b>{resumo.ativosPorNivel[n]}</b> {ROTULO_NIVEL[n]}
-              </span>
-            ))}
+          <div className="alerts-hero-text">
+            {!resumo ? (
+              <>
+                <strong>Carregando situação…</strong>
+                <span>Consultando os alertas de {cidade}.</span>
+              </>
+            ) : (
+              <>
+                <strong>{semAlertaAtivo ? 'Situação sob controle' : TITULO_SITUACAO[resumo.maisGrave ?? 'BAIXO']}</strong>
+                <span>
+                  {semAlertaAtivo
+                    ? `Nenhum alerta ativo em ${cidade} neste momento.`
+                    : `${plural(resumo.ativos, 'alerta ativo', 'alertas ativos')} em ${cidade}. Pessoas sensíveis devem redobrar a atenção.`}
+                </span>
+              </>
+            )}
           </div>
-        )}
-      </section>
+          {resumo && !semAlertaAtivo && (
+            <div className="alerts-hero-levels" aria-label="Alertas ativos por nível">
+              {[...NIVEIS_ORDEM].reverse().filter((n) => resumo.ativosPorNivel[n] > 0).map((n) => (
+                <span key={n} className={`alerts-mini tom-${n.toLowerCase()}`}>
+                  <b>{resumo.ativosPorNivel[n]}</b> {ROTULO_NIVEL[n]}
+                </span>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="alerts-summary">
         {cartoes.map((c) => (
@@ -182,14 +318,14 @@ export default function AlertsPage({ cidades, cidade, onCidadeChange }: AlertsPa
             <span className="alerts-stat-icon"><Icon name={c.icone} /></span>
             <div>
               <span className="alerts-stat-label">{c.rotulo}</span>
-              <strong>{c.valor}</strong>
+              <strong>{c.valor ?? '–'}</strong>
               <small>{c.nota}</small>
             </div>
           </article>
         ))}
       </div>
 
-      <section className="dash-card alerts-list-card">
+      <section className="dash-card alerts-list-card" aria-busy={carregandoLista}>
         <div className="alerts-toolbar">
           <div className="alerts-filter-group">
             <span className="alerts-filter-label" id="rotulo-status">Status</span>
@@ -200,7 +336,7 @@ export default function AlertsPage({ cidades, cidade, onCidadeChange }: AlertsPa
                   type="button"
                   className={status === f.valor ? 'active' : ''}
                   aria-pressed={status === f.valor}
-                  onClick={() => setStatus(f.valor)}
+                  onClick={() => mudarStatus(f.valor)}
                 >
                   {f.rotulo}
                 </button>
@@ -215,8 +351,8 @@ export default function AlertsPage({ cidades, cidade, onCidadeChange }: AlertsPa
                 <button
                   key={n}
                   type="button"
-                  className={`alerts-chip tom-${n.toLowerCase()}${niveis.includes(n) ? ' active' : ''}`}
-                  aria-pressed={niveis.includes(n)}
+                  className={`alerts-chip tom-${n.toLowerCase()}${nivel === n ? ' active' : ''}`}
+                  aria-pressed={nivel === n}
                   onClick={() => alternarNivel(n)}
                 >
                   <span className="alerts-chip-dot" />
@@ -225,26 +361,52 @@ export default function AlertsPage({ cidades, cidade, onCidadeChange }: AlertsPa
               ))}
             </div>
           </div>
+
+          <div className="alerts-filter-group">
+            <span className="alerts-filter-label" id="rotulo-poluente">Poluente</span>
+            <label className="dash-select alerts-select">
+              <select aria-labelledby="rotulo-poluente" value={poluente} onChange={(e) => mudarPoluente(e.target.value)} data-testid="filtro-poluente">
+                <option value="">Todos</option>
+                {POLLUTANTS.map((p) => (
+                  <option key={p.chave} value={p.chave}>{p.name}</option>
+                ))}
+              </select>
+              <Icon name="dropdown" />
+            </label>
+          </div>
         </div>
 
-        <div className="alerts-count-row">
-          <span data-testid="contagem">
-            Mostrando <b>{visiveis.length}</b> de {plural(todos.length, 'alerta', 'alertas')}
-          </span>
-          {filtrosAtivos && (
-            <button type="button" className="alerts-clear" onClick={limparFiltros}>
-              <Icon name="close" /> Limpar filtros
-            </button>
-          )}
-        </div>
+        {!erro && !carregandoLista && lista && (
+          <div className="alerts-count-row">
+            <span data-testid="contagem">
+              Mostrando <b>{alertas.length}</b> de {plural(total, 'alerta', 'alertas')}
+            </span>
+            {filtrosAtivos && (
+              <button type="button" className="alerts-clear" onClick={limparFiltros}>
+                <Icon name="close" /> Limpar filtros
+              </button>
+            )}
+          </div>
+        )}
 
-        {visiveis.length === 0 ? (
+        {erro ? (
+          <div className="alerts-empty" data-testid="estado-erro" role="alert">
+            <span className="alerts-empty-icon"><Icon name="warning" /></span>
+            <strong>Não foi possível carregar os alertas. Tente novamente.</strong>
+            <button type="button" className="alerts-retry" onClick={recarregar}>Tentar novamente</button>
+          </div>
+        ) : carregandoLista ? (
+          <div className="alerts-empty" data-testid="carregando" role="status">
+            <span className="alerts-empty-icon"><Icon name="clock" /></span>
+            <strong>Carregando alertas…</strong>
+          </div>
+        ) : alertas.length === 0 ? (
           <div className="alerts-empty" data-testid="estado-vazio">
             <span className="alerts-empty-icon"><Icon name={mensagemSemAtivo ? 'shield' : 'bell'} /></span>
             {mensagemSemAtivo ? (
               <>
                 <strong>Nenhum alerta ativo no momento.</strong>
-                <p>Os níveis monitorados estão dentro dos limites configurados.</p>
+                <p>Os níveis monitorados estão abaixo dos limiares técnicos provisórios.</p>
               </>
             ) : (
               <>
@@ -255,11 +417,11 @@ export default function AlertsPage({ cidades, cidade, onCidadeChange }: AlertsPa
           </div>
         ) : (
           <ul className="alerts-list">
-            {visiveis.map((a) => (
+            {alertas.map((a) => (
               <li key={a.id}>
                 <button
                   type="button"
-                  className={`alert-item tom-${tomDoAlerta(a)}${a.status === 'RESOLVIDO' ? ' is-resolvido' : ''}${selecionadoId === a.id ? ' is-selected' : ''}`}
+                  className={`alert-item tom-${tomDoAlerta(a)}${a.status === 'RESOLVIDO' ? ' is-resolvido' : ''}${selecionado?.id === a.id ? ' is-selected' : ''}`}
                   onClick={() => abrir(a)}
                   aria-label={`Ver detalhes: ${a.titulo}`}
                   data-testid="alerta"
@@ -272,9 +434,9 @@ export default function AlertsPage({ cidades, cidade, onCidadeChange }: AlertsPa
                     </span>
                     <span className="alert-item-desc">{a.descricao}</span>
                     <span className="alert-item-meta">
-                      <span><Icon name="pin" />{a.cidade} · {a.estacao}</span>
-                      <span><Icon name="clock" />{tempoRelativo(a.dataHora, agora)} · {formatarDataHora(a.dataHora)}</span>
-                      <span className={`alert-origin origem-${a.origem === 'OPENAQ' ? 'estacao' : 'modelo'}`}>{ROTULO_FONTE[a.origem]}</span>
+                      <span><Icon name="pin" />{a.cidade} · {nomeDaEstacaoDoAlerta(a)}</span>
+                      <span><Icon name="clock" />{tempoRelativo(a.medicaoEm, atualizadoEm)} · {formatarDataHora(a.medicaoEm)}</span>
+                      <span className={`alert-origin origem-${a.tipoDado === 'MEDICAO' ? 'estacao' : 'modelo'}`}>{rotuloOrigem(a.tipoDado)}</span>
                     </span>
                   </span>
                   <span className="alert-item-value">
@@ -292,60 +454,82 @@ export default function AlertsPage({ cidades, cidade, onCidadeChange }: AlertsPa
           </ul>
         )}
 
-        <p className="quality-note">
-          Alertas ilustrativos: a geração automática e os limiares definitivos serão entregues em etapa futura. Os valores exibidos não vêm de medições reais.
-        </p>
+        {!erro && !carregandoLista && totalPaginas > 1 && (
+          <nav className="alerts-pager" aria-label="Paginação dos alertas" data-testid="paginacao">
+            <button type="button" onClick={() => setPagina((p) => Math.max(1, p - 1))} disabled={pagina <= 1}>Anterior</button>
+            <span>Página <b>{pagina}</b> de {totalPaginas}</span>
+            <button type="button" onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))} disabled={pagina >= totalPaginas}>Próxima</button>
+          </nav>
+        )}
+
+        {lista?.limiaresProvisorios && (
+          <p className="quality-note" data-testid="nota-limiares">Os níveis de alerta utilizam parâmetros técnicos provisórios.</p>
+        )}
       </section>
 
       {selecionado && (
-        <div className="alerts-overlay" onClick={fechar} data-testid="alerta-overlay">
-          <aside
-            className={`alerts-drawer tom-${tomDoAlerta(selecionado)}`}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="alerta-titulo"
-            onClick={(e) => e.stopPropagation()}
-            data-testid="alerta-detalhe"
-          >
-            <header className="alerts-drawer-head">
-              <span className="alerts-drawer-icon"><Icon name={selecionado.status === 'RESOLVIDO' ? 'check' : ICONE_NIVEL[selecionado.nivel]} /></span>
-              <div>
-                <span className="alert-pollutant">{nomePoluente(selecionado.poluente)}</span>
-                <h2 id="alerta-titulo">{selecionado.titulo}</h2>
-              </div>
-              <button ref={botaoFecharRef} type="button" className="alerts-drawer-close" onClick={fechar} aria-label="Fechar detalhes">
-                <Icon name="close" />
-              </button>
-            </header>
+        <DetailDrawer
+          titulo={selecionado.titulo}
+          tituloId="alerta-titulo"
+          testId="alerta"
+          className={`tom-${tomDoAlerta(selecionado)}`}
+          icone={<Icon name={selecionado.status === 'RESOLVIDO' ? 'check' : ICONE_NIVEL[selecionado.nivel]} />}
+          etiqueta={<span className="alert-pollutant">{nomePoluente(selecionado.poluente)}</span>}
+          onClose={fechar}
+        >
+          <div className="detail-badges">
+            <NivelBadge alerta={selecionado} />
+            <StatusBadge status={selecionado.status} />
+          </div>
 
-            <div className="alerts-drawer-badges">
-              <NivelBadge alerta={selecionado} />
-              <StatusBadge status={selecionado.status} />
+          <div className="alerts-drawer-value">
+            <b>{formatarValorAlerta(selecionado.valor)}</b>
+            <span>{selecionado.unidade}</span>
+            <small>{rotuloValor(selecionado.tipoDado)}</small>
+          </div>
+
+          <p className="detail-desc">{selecionado.descricao}</p>
+
+          <dl className="detail-kv">
+            <div><dt>Poluente</dt><dd>{nomePoluente(selecionado.poluente)}</dd></div>
+            <div><dt>Nível</dt><dd>{ROTULO_NIVEL[selecionado.nivel]}</dd></div>
+            <div><dt>Status</dt><dd>{ROTULO_STATUS[selecionado.status]}</dd></div>
+            <div><dt>Cidade</dt><dd>{selecionado.cidade}</dd></div>
+            <div><dt>Estação / fonte</dt><dd>{nomeDaEstacaoDoAlerta(selecionado)}</dd></div>
+            <div><dt>Data e hora da medição</dt><dd>{formatarDataHora(selecionado.medicaoEm)} ({tempoRelativo(selecionado.medicaoEm, atualizadoEm)})</dd></div>
+            <div><dt>Origem do dado</dt><dd>{rotuloOrigem(selecionado.tipoDado)} ({NOME_FONTE[selecionado.origemDado]})</dd></div>
+            <div><dt>Criado em</dt><dd>{formatarDataHora(selecionado.criadoEm)}</dd></div>
+            <div><dt>Atualizado em</dt><dd>{formatarDataHora(selecionado.atualizadoEm)}</dd></div>
+            {selecionado.resolvidoEm && <div><dt>Resolvido em</dt><dd>{formatarDataHora(selecionado.resolvidoEm)}</dd></div>}
+          </dl>
+
+          {isAdmin && selecionado.status === 'ATIVO' && (
+            <div className="alerts-admin-action">
+              {confirmandoResolver ? (
+                <>
+                  <p>Resolver este alerta manualmente?</p>
+                  <div className="alerts-admin-buttons">
+                    <button type="button" className="alerts-eval is-primary" onClick={resolverAlerta} disabled={resolvendo} data-testid="confirmar-resolver">
+                      {resolvendo ? 'Resolvendo…' : 'Confirmar'}
+                    </button>
+                    <button type="button" className="alerts-eval" onClick={() => setConfirmandoResolver(false)} disabled={resolvendo}>Cancelar</button>
+                  </div>
+                </>
+              ) : (
+                <button type="button" className="alerts-eval" onClick={() => setConfirmandoResolver(true)} data-testid="resolver">
+                  <Icon name="check" />
+                  Resolver alerta
+                </button>
+              )}
+              {erroResolver && <p className="alerts-aviso is-erro" role="alert">{erroResolver}</p>}
             </div>
+          )}
 
-            <div className="alerts-drawer-value">
-              <b>{formatarValorAlerta(selecionado.valor)}</b>
-              <span>{selecionado.unidade}</span>
-              <small>valor medido ou estimado</small>
-            </div>
-
-            <p className="alerts-drawer-desc">{selecionado.detalhe}</p>
-
-            <dl className="alerts-drawer-kv">
-              <div><dt>Poluente</dt><dd>{nomePoluente(selecionado.poluente)}</dd></div>
-              <div><dt>Nível</dt><dd>{ROTULO_NIVEL[selecionado.nivel]}</dd></div>
-              <div><dt>Status</dt><dd>{ROTULO_STATUS[selecionado.status]}</dd></div>
-              <div><dt>Cidade</dt><dd>{selecionado.cidade}</dd></div>
-              <div><dt>Estação / fonte</dt><dd>{selecionado.estacao}</dd></div>
-              <div><dt>Data e hora</dt><dd>{formatarDataHora(selecionado.dataHora)} ({tempoRelativo(selecionado.dataHora, agora)})</dd></div>
-              <div><dt>Origem do dado</dt><dd>{ROTULO_FONTE[selecionado.origem]}</dd></div>
-            </dl>
-
-            <p className="quality-note">Alerta ilustrativo: exemplo de interface, sem medição real associada.</p>
-
-            <button type="button" className="alerts-drawer-done" onClick={fechar}>Fechar</button>
-          </aside>
-        </div>
+          {selecionado.tipoDado === 'MODELO' && (
+            <p className="quality-note">Estimativa do modelo CAMS, fornecida pela Open-Meteo. Não é uma medição local.</p>
+          )}
+          <p className="quality-note">Os níveis de alerta utilizam parâmetros técnicos provisórios.</p>
+        </DetailDrawer>
       )}
     </div>
   );

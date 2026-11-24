@@ -1,0 +1,7 @@
+﻿/* Filtros do cabeçalho das telas (cidade + última atualização). Reaproveita .dash-filters, .dash-select e .dash-date do Dashboard.css. */
+
+@media (max-width: 800px) {
+  .dash-filters {
+    flex-wrap: wrap;
+  }
+}

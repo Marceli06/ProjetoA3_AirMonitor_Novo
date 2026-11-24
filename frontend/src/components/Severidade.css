@@ -1,0 +1,26 @@
+﻿/* Paleta de severidade e selo de nível, compartilhados por Alertas e Ocorrências. */
+
+/* Cores por severidade: cada .tom-* define --tom (texto/destaque), --tom-bg (fundo suave) e --tom-borda */
+.tom-baixo { --tom: #1f6fb2; --tom-bg: #e8f2fb; --tom-borda: #b9d6ee; }
+.tom-moderado { --tom: #a76b00; --tom-bg: #fff4d6; --tom-borda: #f2d58a; }
+.tom-alto { --tom: #c75a00; --tom-bg: #ffebd9; --tom-borda: #f6bf93; }
+.tom-critico { --tom: #c8283a; --tom-bg: #fdeaec; --tom-borda: #f3b5bc; }
+.tom-resolvido { --tom: #12834a; --tom-bg: #e4f6ec; --tom-borda: #a9dfc2; }
+
+.alert-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.18rem 0.6rem;
+  background: var(--tom-bg);
+  border: 1px solid var(--tom-borda);
+  border-radius: 999px;
+  color: var(--tom);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.dash .alert-level svg {
+  width: 13px;
+  height: 13px;
+}

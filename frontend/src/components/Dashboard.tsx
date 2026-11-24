@@ -170,7 +170,7 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
           ) : isAdmin && activeMenu === 'Relatórios' ? (
             <ReportsPage cidades={CIDADES} cidade={region} onCidadeChange={setRegion} qualidade={qualidade} />
           ) : activeMenu === 'Alertas' ? (
-            <AlertsPage cidades={cidadesDisponiveis} cidade={region} onCidadeChange={setRegion} />
+            <AlertsPage cidades={cidadesDisponiveis} cidade={region} onCidadeChange={setRegion} isAdmin={isAdmin} />
           ) : activeMenu !== 'Dashboard' ? (
             <section className="dash-card">
               <h2>{activeMenu}</h2>

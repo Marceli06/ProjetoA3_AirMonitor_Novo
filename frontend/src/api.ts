@@ -1,6 +1,7 @@
 ﻿import axios from 'axios';
 import { EstacoesArResponse, UltimasMedicoesArResponse, RegisterPayload, UsuarioAdmin, DadosUsuarioForm, NovoUsuarioData, SessaoResponse,
-  ResumoAdminResponse, ConfiguracoesSistema, EstacoesAdminResponse } from './types';
+  ResumoAdminResponse, ConfiguracoesSistema, EstacoesAdminResponse, FiltrosAlertas, ListaAlertasResponse, AlertaResponse,
+  ResumoAvaliacaoAlertasResponse } from './types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -77,6 +78,18 @@ export const airQualityAPI = {
     api.get<EstacoesArResponse>('/air-quality/locations', { params: { cidade, limite, raio: 25000 } }),
   ultimasMedicoes: (estacaoId: number) =>
     api.get<UltimasMedicoesArResponse>(`/air-quality/locations/${estacaoId}/latest`),
+};
+
+// Alertas gerados pelo backend. A cidade e o perfil são validados no servidor: USUARIO só acessa a própria cidade
+// (403 para outra) e as ações de escrita são só de ADMIN. O 403 passa adiante sem encerrar a sessão (ver interceptor).
+export const alertasAPI = {
+  listar: (filtros: FiltrosAlertas = {}, signal?: AbortSignal) =>
+    api.get<ListaAlertasResponse>('/alertas', { params: filtros, signal }),
+  obter: (id: number) => api.get<AlertaResponse>(`/alertas/${id}`),
+  resolver: (id: number) => api.post<AlertaResponse>(`/alertas/${id}/resolver`),
+  // A avaliação consulta OpenAQ/Open-Meteo estação por estação: pode levar alguns segundos
+  avaliar: (cidade: string, limite?: number) =>
+    api.post<ResumoAvaliacaoAlertasResponse>('/alertas/avaliar', { cidade, limite }, { timeout: 90000 }),
 };
 
 export default api;

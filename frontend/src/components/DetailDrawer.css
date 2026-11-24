@@ -1,0 +1,148 @@
+﻿/* Painel lateral de detalhes compartilhado (Alertas e Ocorrências).
+   A cor de destaque vem de --tom, definido pela classe passada em className (ex.: .tom-critico). */
+
+.detail-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(11, 36, 71, 0.4);
+}
+
+.detail-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  width: min(440px, 100%);
+  height: 100%;
+  padding: 1.1rem 1.2rem;
+  overflow-y: auto;
+  background: #fff;
+  border-top: 5px solid var(--tom, #0b3b8c);
+  box-shadow: -8px 0 30px rgba(11, 36, 71, 0.25);
+  animation: detail-drawer-in 0.2s ease-out;
+}
+
+@keyframes detail-drawer-in {
+  from { transform: translateX(40px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes detail-sheet-in {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+.detail-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+}
+
+.detail-head > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.detail-head h2 {
+  margin: 0.3rem 0 0;
+  color: #0b3b8c;
+  font-size: 1.1rem;
+  line-height: 1.3;
+}
+
+.detail-head-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  background: var(--tom-bg, #e6edf9);
+  border-radius: 12px;
+  color: var(--tom, #0b3b8c);
+}
+
+.detail-close {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  background: #eef3f7;
+  border: none;
+  border-radius: 8px;
+  color: #1d3557;
+  cursor: pointer;
+}
+
+.detail-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 0.8rem;
+}
+
+.detail-desc {
+  margin: 0;
+  color: #1d3557;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.detail-kv {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.detail-kv > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #eef3f7;
+  font-size: 0.82rem;
+}
+
+.detail-kv dt {
+  color: #5c7a99;
+}
+
+.detail-kv dd {
+  margin: 0;
+  color: #1d3557;
+  font-weight: 600;
+  text-align: right;
+}
+
+.detail-done {
+  margin-top: auto;
+  padding: 0.65rem 1rem;
+  background: #0b3b8c;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.detail-close:focus-visible,
+.detail-done:focus-visible {
+  outline: 2px solid #0b3b8c;
+  outline-offset: 2px;
+}
+
+@media (max-width: 800px) {
+  .detail-drawer {
+    width: 100%;
+    animation-name: detail-sheet-in;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .detail-drawer {
+    animation: none;
+  }
+}

@@ -167,25 +167,67 @@ export interface ConfiguracoesSistema {
   geradoEm: string;
 }
 
-// Alertas de qualidade do ar. Nesta etapa são ILUSTRATIVOS (utils/alertas.ts): ainda não há geração automática,
-// limiares definitivos nem persistência. A origem usa os mesmos conceitos do Dashboard (OpenAQ = medição de
-// estação; Open-Meteo = estimativa por modelo).
+// Alertas de qualidade do ar, como devolvidos por /api/alertas (backend/src/services/alertas.ts). Os limiares de
+// nível ainda são PROVISÓRIOS (limiaresProvisorios). A origem usa os mesmos conceitos do Dashboard (OpenAQ = medição
+// de estação; Open-Meteo = estimativa por modelo) e tipoDado nunca mistura os dois.
 export type NivelAlerta = 'BAIXO' | 'MODERADO' | 'ALTO' | 'CRITICO';
 export type StatusAlerta = 'ATIVO' | 'RESOLVIDO';
 export type OrigemAlerta = 'OPENAQ' | 'OPEN_METEO';
 
+export type TipoDadoAlerta = 'MEDICAO' | 'MODELO';
+
 export interface AlertaAr {
-  id: string;
+  id: number;
+  cidade: string;
+  regiao: string | null;
+  estacaoId: string;
+  estacaoNome: string | null;
   poluente: string; // chave do poluente: pm25, pm10, o3, no2, co, so2
-  titulo: string;
-  descricao: string;
-  detalhe: string;
+  poluenteNome: string;
   valor: number;
   unidade: string;
   nivel: NivelAlerta;
+  titulo: string;
+  descricao: string;
   status: StatusAlerta;
+  origemDado: OrigemAlerta;
+  tipoDado: TipoDadoAlerta; // MEDICAO (estação) ou MODELO (estimativa)
+  medicaoEm: string;
+  criadoEm: string;
+  atualizadoEm: string;
+  resolvidoEm: string | null;
+}
+
+export interface FiltrosAlertas {
+  cidade?: string;
+  status?: StatusAlerta;
+  nivel?: NivelAlerta;
+  poluente?: string;
+  limite?: number;
+  pagina?: number;
+}
+
+export interface ListaAlertasResponse {
+  total: number;
+  pagina: number;
+  limite: number;
+  alertas: AlertaAr[];
+  limiaresProvisorios: boolean;
+}
+
+export interface AlertaResponse {
+  alerta: AlertaAr;
+  limiaresProvisorios?: boolean;
+}
+
+export type AcaoAvaliacaoAlerta = 'criado' | 'atualizado' | 'resolvido' | 'sem_alerta' | 'ignorado';
+
+export interface ResumoAvaliacaoAlertasResponse {
   cidade: string;
-  estacao: string;
-  dataHora: string;
-  origem: OrigemAlerta;
+  estacoesAvaliadas: number;
+  contagem: Record<AcaoAvaliacaoAlerta, number>;
+  alertas: AlertaAr[];
+  resolvidos: AlertaAr[];
+  falhas: { estacaoId: string; motivo: string }[];
+  limiaresProvisorios: boolean;
 }
