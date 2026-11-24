@@ -12,7 +12,8 @@
     "openaq:validate": "tsx src/scripts/validateOpenAQ.ts",
     "fallback:validate": "tsx src/scripts/validateFallback.ts",
     "fallback-total:validate": "tsx src/scripts/validateFallbackTotal.ts",
-    "dashboard:validate": "tsx src/scripts/validateDashboard.ts"
+    "dashboard:validate": "tsx src/scripts/validateDashboard.ts",
+    "alertas:validate": "tsx src/scripts/validateAlertas.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
