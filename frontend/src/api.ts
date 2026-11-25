@@ -4,7 +4,10 @@ import { EstacoesArResponse, UltimasMedicoesArResponse, RegisterPayload, Usuario
   ResumoAvaliacaoAlertasResponse, FiltrosOcorrenciasAPI, ListaOcorrenciasResponse, OcorrenciaResponse, NovaOcorrenciaPayload,
   StatusOcorrencia, FiltrosHistoricoAPI, HistoricoResponse, ModeloCidadeResponse } from './types';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+// Produção (Vercel): defina VITE_API_URL com a URL do backend terminando em /api (ex.: https://airmonitor-api.onrender.com/api).
+// O endereço local é só o padrão do desenvolvimento; o build de produção nunca aponta para localhost.
+const API_URL: string = String(import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3000/api' : '/api')).trim().replace(/\/+$/, '');
+if (!import.meta.env.DEV && !import.meta.env.VITE_API_URL) console.error('VITE_API_URL não definido: as chamadas à API vão falhar.');
 
 const api = axios.create({
   baseURL: API_URL,

@@ -8,15 +8,17 @@ import alertasRoutes from './routes/alertas';
 import ocorrenciasRoutes from './routes/ocorrencias';
 import historicoRoutes from './routes/historico';
 import { errorHandler } from './middlewares';
+import { corsOptions } from './corsConfig';
 import pool from './database';
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+// No Render a porta vem de process.env.PORT; 3000 é só o padrão local
+const PORT = Number(process.env.PORT) || 3000;
 
 // Middlewares
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Health check
@@ -46,6 +48,7 @@ app.use('/api/historico', historicoRoutes);
 app.use(errorHandler);
 
 // Iniciar servidor
-app.listen(PORT, () => {
-  console.log(`Servidor rodando em http://localhost:${PORT}`);
+// 0.0.0.0: necessário para o proxy do Render alcançar o processo dentro do contêiner
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
 });
