@@ -44,7 +44,11 @@ O pedido dizia que USUARIO "não pode alterar ocorrência de outra cidade" e que
 
 `npm run ocorrencias:validate` (backend em `BASE_URL`, padrão `http://127.0.0.1:3996/api`): estrutura da tabela, constraints, validação de entrada, 401/403/404/409, filtros, paginação, ADMIN x USUARIO, fluxo de status, concorrência e limpeza. Registros de teste usam o prefixo `[TESTE]` e usuários `tmp.ocorr.*`, removidos ao final.
 
+## Interface
+
+A tela `OccurrencesPage` consome esta API (cartões-resumo, busca, filtros, paginação, formulário de nova ocorrência e detalhe; o ADMIN inicia e conclui). O Dashboard do USUARIO mostra as 3 ocorrências mais recentes da cidade ("Ocorrências recentes"), de qualquer autor da cidade. Interface validada por `validateOcorrenciasUI.mjs` (21 verificações por navegador) e pela suíte de sistema.
+
 ## Pendências
 
-- Integração Alertas → Ocorrências (origem `AUTOMATICA`).
-- Ligar o frontend (`OccurrencesPage`, hoje com dados ilustrativos) à API; o frontend usa `registro AUTOMATICO|COMUNIDADE`, etapas e observações, que precisam ser mapeados para `origem`/`status`.
+- **Integração Alertas → Ocorrências não existe:** a origem `AUTOMATICA` está prevista no banco, mas nenhum alerta gera ocorrência hoje.
+- Não há anexos (fotos) nem edição de título/descrição depois do registro.
