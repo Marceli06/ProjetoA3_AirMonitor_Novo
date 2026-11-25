@@ -313,6 +313,9 @@ async function rotas() {
   const idInexistente = await chamar('/alertas/2147483647', { token: tokenAdmin });
   const idInvalido = await Promise.all(['abc', '0', '-1', '1.5'].map((v) => chamar(`/alertas/${v}`, { token: tokenAdmin })));
   check(idInexistente.status === 404 && idInvalido.every((r) => r.status === 400), 'ID inexistente -> 404; ID inválido (abc, 0, -1, 1.5) -> 400', `ids: ${idInexistente.status} ${idInvalido.map((r) => r.status)}`);
+  const idGigante = await Promise.all(['2147483648', '99999999999', '9007199254740993', '1e10'].map((v) => chamar(`/alertas/${v}`, { token: tokenAdmin })));
+  const resolverGigante = await chamar('/alertas/99999999999/resolver', { token: tokenAdmin, metodo: 'POST', corpo: {} });
+  check(idGigante.every((r) => r.status === 400) && resolverGigante.status === 400, 'ID acima do INTEGER do banco (GET e resolver) -> 400, nunca 500', `ids gigantes: ${idGigante.map((r) => r.status)} resolver=${resolverGigante.status}`);
 
   // disparo de avaliação e resolução: só ADMIN
   const avaliarUsuario = await chamar('/alertas/avaliar', { token: tokenUsuario, corpo: { cidade: CIDADE_USUARIO } });
