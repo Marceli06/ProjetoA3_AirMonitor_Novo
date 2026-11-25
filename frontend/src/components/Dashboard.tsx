@@ -4,6 +4,7 @@ import StationsPage from './StationsPage';
 import SettingsPage from './SettingsPage';
 import ReportsPage from './ReportsPage';
 import AlertsPage from './AlertsPage';
+import OccurrencesPage from './OccurrencesPage';
 import Icon, { IconName } from './Icon';
 import { AdminStationSummary, AdminUserStats } from './AdminWidgets';
 import { CITIES } from './Register';
@@ -171,6 +172,8 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
             <ReportsPage cidades={CIDADES} cidade={region} onCidadeChange={setRegion} qualidade={qualidade} />
           ) : activeMenu === 'Alertas' ? (
             <AlertsPage cidades={cidadesDisponiveis} cidade={region} onCidadeChange={setRegion} isAdmin={isAdmin} />
+          ) : activeMenu === 'Ocorrências' ? (
+            <OccurrencesPage cidades={cidadesDisponiveis} cidade={region} onCidadeChange={setRegion} isAdmin={isAdmin} />
           ) : activeMenu !== 'Dashboard' ? (
             <section className="dash-card">
               <h2>{activeMenu}</h2>
@@ -350,7 +353,7 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
               <section className="dash-card dash-occurrences">
                 <div className="card-head">
                   <h2><Icon name="clipboard" /> Minhas ocorrências recentes</h2>
-                  <a href="#">Ver todas <Icon name="arrow" /></a>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setActiveMenu('Ocorrências'); }}>Ver todas <Icon name="arrow" /></a>
                 </div>
                 {MY_OCCURRENCES.map((o) => (
                   <div key={o.title} className="list-item">

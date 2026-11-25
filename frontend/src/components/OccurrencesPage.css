@@ -1,0 +1,969 @@
+﻿/* Tela de Ocorrências. Reaproveita .dash-heading, .dash-card, .quality-note (Dashboard.css), a paleta .tom-* (Severidade.css)
+   e o painel lateral (DetailDrawer.css). */
+
+.oc-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  min-width: 0;
+}
+
+.oc-page .tom-total { --tom: #0b3b8c; --tom-bg: #e6edf9; --tom-borda: #b8c9ea; }
+
+/* Cores por tipo de ocorrência */
+.oc-tipo-poluicao { --tipo: #c8283a; --tipo-bg: #fdeaec; }
+.oc-tipo-queimada { --tipo: #c75a00; --tipo-bg: #ffebd9; }
+.oc-tipo-emissao { --tipo: #6b4fbb; --tipo-bg: #efe9fb; }
+.oc-tipo-comunidade { --tipo: #1f6fb2; --tipo-bg: #e8f2fb; }
+.oc-tipo-normalizacao { --tipo: #12834a; --tipo-bg: #e4f6ec; }
+
+.oc-title {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.oc-title-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  background: #0b3b8c;
+  border-radius: 12px;
+  color: #fff;
+}
+
+.dash .oc-title-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Resumo: cada cartão também funciona como atalho de filtro de status */
+.oc-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.oc-summary-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.8rem;
+}
+
+.oc-page .oc-stat {
+  position: relative;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.8rem;
+  overflow: hidden;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s, transform 0.15s;
+}
+
+.oc-page .oc-stat:hover {
+  box-shadow: 0 4px 14px rgba(11, 59, 140, 0.12);
+  transform: translateY(-1px);
+}
+
+.oc-page .oc-stat.is-active {
+  border-color: var(--tom);
+  box-shadow: 0 0 0 2px var(--tom-bg), 0 4px 14px rgba(11, 59, 140, 0.1);
+}
+
+.oc-stat:focus-visible,
+.oc-page-btn:focus-visible,
+.oc-clear:focus-visible,
+.oc-open:focus-visible {
+  outline: 2px solid #0b3b8c;
+  outline-offset: 2px;
+}
+
+.oc-stat-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  background: var(--tom-bg);
+  border-radius: 50%;
+  color: var(--tom);
+}
+
+.dash .oc-stat-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.oc-stat-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
+}
+
+.oc-stat-label {
+  color: #3d5a78;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.oc-stat strong {
+  color: var(--tom);
+  font-size: 1.9rem;
+  line-height: 1.1;
+}
+
+.oc-stat small {
+  color: #7b93ab;
+  font-size: 0.7rem;
+}
+
+/* Barra de distribuição por situação */
+.oc-bar {
+  display: flex;
+  gap: 3px;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e3edf5;
+}
+
+.oc-bar-seg {
+  flex: 1 1 0;
+  min-width: 0;
+  background: var(--tom);
+}
+
+/* Lista */
+.oc-page .oc-list-card {
+  gap: 0.75rem;
+}
+
+.oc-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.oc-search,
+.oc-select {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.8rem;
+  background: #fff;
+  border: 1px solid #cfe0ec;
+  border-radius: 8px;
+  color: #0b3b8c;
+  font-size: 0.85rem;
+}
+
+.oc-search {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.oc-search:focus-within,
+.oc-select:focus-within {
+  border-color: #0b3b8c;
+  box-shadow: 0 0 0 3px rgba(11, 59, 140, 0.12);
+}
+
+.oc-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  color: #1d3557;
+  font: inherit;
+  outline: none;
+}
+
+.oc-search input::placeholder {
+  color: #7b93ab;
+}
+
+.oc-select span {
+  color: #5c7a99;
+  white-space: nowrap;
+}
+
+.oc-select select {
+  border: none;
+  background: none;
+  color: #1d3557;
+  font: inherit;
+  font-weight: 600;
+  outline: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.oc-active-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  color: #5c7a99;
+  font-size: 0.8rem;
+}
+
+.oc-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: #0b3b8c;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dash .oc-clear svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Tabela (desktop) */
+.oc-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.oc-table th {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid #dbe9f2;
+  color: #5c7a99;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.oc-table th:nth-child(1) { width: 9%; }
+.oc-table th:nth-child(2) { width: 33%; }
+.oc-table th:nth-child(3) { width: 13%; }
+.oc-table th:nth-child(4) { width: 19%; }
+.oc-table th:nth-child(5) { width: 12%; }
+.oc-table th:nth-child(6) { width: 14%; }
+
+.oc-table td {
+  padding: 0.65rem 0.6rem;
+  border-bottom: 1px solid #eef3f7;
+  vertical-align: middle;
+}
+
+.oc-row {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.oc-row td:first-child {
+  box-shadow: inset 4px 0 0 var(--tom);
+  padding-left: 0.9rem;
+}
+
+.oc-row:hover {
+  background: #f6fafd;
+}
+
+.oc-row.is-selected {
+  background: var(--tom-bg);
+}
+
+.oc-id {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  background: #eef3f7;
+  border-radius: 6px;
+  color: #0b3b8c;
+  font-size: 0.74rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.oc-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.oc-main-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  background: var(--tipo-bg);
+  border-radius: 9px;
+  color: var(--tipo);
+}
+
+.oc-main-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.oc-open {
+  padding: 0;
+  background: none;
+  border: none;
+  color: #0b3b8c;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.oc-desc {
+  color: #5c7a99;
+  font-size: 0.8rem;
+}
+
+.oc-tipo,
+.oc-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.oc-tipo {
+  background: var(--tipo-bg);
+  color: var(--tipo);
+}
+
+.oc-status {
+  background: var(--tom-bg);
+  border: 1px solid var(--tom-borda);
+  color: var(--tom);
+}
+
+.oc-tipo-dot,
+.oc-status-dot {
+  width: 7px;
+  height: 7px;
+  background: currentColor;
+  border-radius: 50%;
+}
+
+.oc-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  color: #1d3557;
+  font-size: 0.8rem;
+}
+
+.dash .oc-with-icon svg {
+  width: 15px;
+  height: 15px;
+  color: #6b86a0;
+}
+
+.oc-datetime {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.oc-datetime small {
+  color: #6b86a0;
+  font-size: 0.74rem;
+}
+
+/* Rodapé e paginação */
+.oc-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.oc-range {
+  color: #5c7a99;
+  font-size: 0.8rem;
+}
+
+.oc-pager {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.oc-page-btn {
+  display: grid;
+  place-items: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 0.4rem;
+  background: #fff;
+  border: 1px solid #cfe0ec;
+  border-radius: 8px;
+  color: #0b3b8c;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.oc-page-btn.active {
+  background: #0b3b8c;
+  border-color: #0b3b8c;
+  color: #fff;
+}
+
+.oc-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.oc-page-prev svg {
+  transform: rotate(180deg);
+}
+
+/* Estado vazio */
+.oc-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 2rem 1rem;
+  background: #f6fafd;
+  border: 1px dashed #cfe0ec;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.oc-empty strong {
+  color: #0b3b8c;
+  font-size: 1rem;
+}
+
+.oc-empty p {
+  margin: 0;
+  color: #5c7a99;
+  font-size: 0.85rem;
+}
+
+.oc-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  background: #e6edf9;
+  border-radius: 50%;
+  color: #0b3b8c;
+}
+
+.dash .oc-empty-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* Painel de detalhes */
+.oc-registro {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.6rem;
+  background: #eef3f7;
+  border-radius: 999px;
+  color: #3d5a78;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.dash .oc-registro svg {
+  width: 13px;
+  height: 13px;
+}
+
+.oc-moment {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.8rem 1rem;
+  background: var(--tom-bg);
+  border: 1px solid var(--tom-borda);
+  border-radius: 10px;
+}
+
+.oc-moment h3,
+.oc-block h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  color: #0b3b8c;
+  font-size: 0.88rem;
+}
+
+.oc-moment-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+.oc-moment-label {
+  display: block;
+  color: #5c7a99;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.oc-moment-body b {
+  color: var(--tom);
+  font-size: 1.9rem;
+  line-height: 1.1;
+}
+
+.oc-moment-unit {
+  color: var(--tom);
+  font-weight: 600;
+}
+
+.oc-moment-level {
+  text-align: right;
+}
+
+.oc-moment small {
+  color: #5c7a99;
+  font-size: 0.72rem;
+}
+
+.oc-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.oc-timeline {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.oc-timeline li {
+  position: relative;
+  display: flex;
+  gap: 0.7rem;
+  padding-bottom: 0.9rem;
+}
+
+.oc-timeline li:last-child {
+  padding-bottom: 0;
+}
+
+.oc-timeline li:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  top: 20px;
+  bottom: 0;
+  left: 9px;
+  width: 2px;
+  background: #dbe9f2;
+}
+
+.oc-timeline li.is-done:not(:last-child)::before {
+  background: var(--tom);
+}
+
+.oc-timeline-dot {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  background: #fff;
+  border: 2px solid #cfe0ec;
+  border-radius: 50%;
+  color: #fff;
+}
+
+.oc-timeline li.is-done .oc-timeline-dot {
+  background: var(--tom);
+  border-color: var(--tom);
+}
+
+.dash .oc-timeline-dot svg {
+  width: 11px;
+  height: 11px;
+  stroke-width: 3;
+}
+
+.oc-timeline li div {
+  display: flex;
+  flex-direction: column;
+}
+
+.oc-timeline strong {
+  color: #1d3557;
+  font-size: 0.82rem;
+}
+
+.oc-timeline li.is-pending strong {
+  color: #7b93ab;
+}
+
+.oc-timeline small {
+  color: #6b86a0;
+  font-size: 0.74rem;
+}
+
+/* Responsivo */
+@media (max-width: 1100px) {
+  .oc-summary-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* A tabela vira lista de cartões com as mesmas informações */
+@media (max-width: 1000px) {
+  .oc-table,
+  .oc-table tbody,
+  .oc-table tr,
+  .oc-table td {
+    display: block;
+  }
+
+  .oc-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .oc-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .oc-table .oc-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.45rem 0.7rem;
+    padding: 0.75rem 0.85rem;
+    background: #fff;
+    border: 1px solid #dbe9f2;
+    border-left: 5px solid var(--tom);
+    border-radius: 10px;
+  }
+
+  .oc-row td,
+  .oc-row td:first-child {
+    padding: 0;
+    border: none;
+    box-shadow: none;
+  }
+
+  .oc-cell-id { grid-column: 1; grid-row: 1; align-self: center; }
+  .oc-cell-status { grid-column: 2; grid-row: 1; justify-self: end; }
+  .oc-cell-main,
+  .oc-cell-tipo,
+  .oc-cell-local,
+  .oc-cell-data { grid-column: 1 / -1; }
+
+  .oc-datetime {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.4rem;
+  }
+}
+
+@media (max-width: 800px) {
+  .oc-summary-cards {
+    gap: 0.6rem;
+  }
+
+  .oc-page .oc-stat {
+    padding: 0.7rem;
+  }
+
+  .oc-stat-icon {
+    display: none;
+  }
+
+  .oc-select {
+    flex: 1 1 140px;
+  }
+
+  .oc-select select {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .oc-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .oc-pager {
+    justify-content: center;
+  }
+
+  .oc-page-btn {
+    min-width: 40px;
+    height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oc-page .oc-stat,
+  .oc-row {
+    transition: none;
+  }
+}
+
+/* Dados reais: cabeçalho com ação, aviso, botões, formulário e ações de status */
+.oc-head-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.oc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.9rem;
+  background: #fff;
+  border: 1px solid #cfe0ec;
+  border-radius: 8px;
+  color: #0b3b8c;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dash .oc-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.oc-btn:hover:not(:disabled) {
+  background: #f3f8fc;
+}
+
+.oc-btn.is-primary {
+  background: #0b3b8c;
+  border-color: #0b3b8c;
+  color: #fff;
+}
+
+.oc-btn.is-primary:hover:not(:disabled) {
+  background: #0a3277;
+}
+
+.oc-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.oc-btn:focus-visible,
+.oc-aviso-close:focus-visible,
+.oc-field input:focus-visible,
+.oc-field textarea:focus-visible,
+.oc-field select:focus-visible {
+  outline: 2px solid #0b3b8c;
+  outline-offset: 2px;
+}
+
+.oc-aviso {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0.5rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+}
+
+.oc-aviso.is-ok {
+  background: #eaf7ef;
+  color: #1b6b3a;
+}
+
+.oc-aviso.is-erro {
+  background: #fdeeee;
+  color: #a32a2a;
+}
+
+.oc-aviso-close {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.dash .oc-aviso-close svg {
+  width: 14px;
+  height: 14px;
+}
+
+.oc-page .oc-list-card.is-loading .oc-table,
+.oc-page .oc-list-card.is-loading .oc-footer {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+
+.oc-empty .oc-btn {
+  margin-top: 0.4rem;
+}
+
+.oc-local-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.oc-local-text small {
+  color: #5c7a99;
+  font-size: 0.74rem;
+}
+
+.oc-page-gap {
+  align-self: center;
+  padding: 0 0.15rem;
+  color: #5c7a99;
+}
+
+.oc-admin-action {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #eef3f7;
+}
+
+.oc-admin-action > p {
+  margin: 0;
+  color: #3d5a78;
+  font-size: 0.85rem;
+}
+
+.oc-admin-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.oc-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.oc-form-note {
+  margin: 0;
+  color: #3d5a78;
+  font-size: 0.85rem;
+}
+
+.oc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.oc-field label {
+  color: #0b3b8c;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.oc-optional {
+  color: #5c7a99;
+  font-weight: 500;
+}
+
+.oc-field input,
+.oc-field textarea,
+.oc-field select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.55rem 0.7rem;
+  background: #fff;
+  border: 1px solid #cfe0ec;
+  border-radius: 8px;
+  color: #17324d;
+  font: inherit;
+  font-size: 0.88rem;
+}
+
+.oc-field textarea {
+  resize: vertical;
+  min-height: 5.5rem;
+}
+
+.oc-field [aria-invalid='true'] {
+  border-color: #c8283a;
+  background: #fffafa;
+}
+
+.oc-field-error {
+  color: #a32a2a;
+  font-size: 0.76rem;
+}
+
+.oc-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+@media (max-width: 800px) {
+  .oc-head-right {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .oc-new {
+    width: 100%;
+    min-height: 40px;
+  }
+
+  .oc-form-actions .oc-btn,
+  .oc-admin-buttons .oc-btn {
+    flex: 1 1 100%;
+    min-height: 40px;
+  }
+}

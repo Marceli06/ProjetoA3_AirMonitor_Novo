@@ -26,6 +26,8 @@ const ICONS = {
   shield: (<><path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z" /><polyline points="9 12 11 14 15 10" /></>),
   alert: (<><path d="M12 2l10 18H2z" /><path d="M12 9v5M12 17h.01" /></>),
   flame: <path d="M12 2s5 4.5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z" />,
+  factory: (<><path d="M2 20V8l6 4V8l6 4V4h4v16z" /><path d="M2 20h20M7 16h2M12 16h2" /></>),
+  search: (<><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></>),
   layers: (<><path d="M12 2l10 5-10 5L2 7z" /><path d="M2 12l10 5 10-5M2 17l10 5 10-5" /></>),
 };
 

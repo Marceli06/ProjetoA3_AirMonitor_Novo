@@ -1,7 +1,8 @@
 ﻿import axios from 'axios';
 import { EstacoesArResponse, UltimasMedicoesArResponse, RegisterPayload, UsuarioAdmin, DadosUsuarioForm, NovoUsuarioData, SessaoResponse,
   ResumoAdminResponse, ConfiguracoesSistema, EstacoesAdminResponse, FiltrosAlertas, ListaAlertasResponse, AlertaResponse,
-  ResumoAvaliacaoAlertasResponse } from './types';
+  ResumoAvaliacaoAlertasResponse, FiltrosOcorrenciasAPI, ListaOcorrenciasResponse, OcorrenciaResponse, NovaOcorrenciaPayload,
+  StatusOcorrencia } from './types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -90,6 +91,16 @@ export const alertasAPI = {
   // A avaliação consulta OpenAQ/Open-Meteo estação por estação: pode levar alguns segundos
   avaliar: (cidade: string, limite?: number) =>
     api.post<ResumoAvaliacaoAlertasResponse>('/alertas/avaliar', { cidade, limite }, { timeout: 90000 }),
+};
+
+// Ocorrências persistidas no banco. USUARIO só enxerga e registra na própria cidade (403 para outra); a alteração de
+// status é só de ADMIN (403 para os demais; 409 se a transição não for permitida). O 403 não encerra a sessão.
+export const ocorrenciasAPI = {
+  listar: (filtros: FiltrosOcorrenciasAPI = {}, signal?: AbortSignal) =>
+    api.get<ListaOcorrenciasResponse>('/ocorrencias', { params: filtros, signal }),
+  obter: (id: number, signal?: AbortSignal) => api.get<OcorrenciaResponse>(`/ocorrencias/${id}`, { signal }),
+  criar: (dados: NovaOcorrenciaPayload) => api.post<OcorrenciaResponse>('/ocorrencias', dados),
+  alterarStatus: (id: number, status: StatusOcorrencia) => api.patch<OcorrenciaResponse>(`/ocorrencias/${id}/status`, { status }),
 };
 
 export default api;

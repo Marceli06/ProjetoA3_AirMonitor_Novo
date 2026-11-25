@@ -231,3 +231,68 @@ export interface ResumoAvaliacaoAlertasResponse {
   falhas: { estacaoId: string; motivo: string }[];
   limiaresProvisorios: boolean;
 }
+
+// Ocorrências ambientais, como devolvidas por /api/ocorrencias (backend/src/services/ocorrencias.ts). Por enquanto só
+// existem ocorrências MANUAIS (registradas por usuários): a origem AUTOMATICA está prevista, mas ainda não há
+// integração com os Alertas.
+export type TipoOcorrencia = 'POLUICAO' | 'QUEIMADA' | 'EMISSAO' | 'COMUNIDADE' | 'NORMALIZACAO';
+export type StatusOcorrencia = 'ABERTA' | 'EM_ANDAMENTO' | 'CONCLUIDA';
+export type OrigemOcorrencia = 'AUTOMATICA' | 'MANUAL';
+
+export interface Ocorrencia {
+  id: number;
+  usuarioId: number | null; // autor, quando manual
+  cidade: string;
+  local: string;
+  estacaoId: string | null;
+  estacaoNome: string | null;
+  tipo: TipoOcorrencia;
+  titulo: string;
+  descricao: string;
+  status: StatusOcorrencia;
+  origem: OrigemOcorrencia;
+  // Leitura ambiental associada (opcional): poluente, valor e unidade vêm juntos; o nível exige poluente
+  poluente: string | null; // chave do poluente: pm25, pm10, o3, no2, co, so2
+  valor: number | null;
+  unidade: string | null;
+  nivel: NivelAlerta | null;
+  criadoEm: string;
+  iniciadoEm: string | null; // quando entrou em andamento
+  atualizadoEm: string;
+  concluidoEm: string | null;
+}
+
+export type ResumoStatusOcorrencias = Record<StatusOcorrencia, number>;
+
+export interface FiltrosOcorrenciasAPI {
+  cidade?: string;
+  status?: StatusOcorrencia;
+  tipo?: TipoOcorrencia;
+  busca?: string;
+  de?: string; // AAAA-MM-DD, inclusivo (fuso America/Sao_Paulo)
+  ate?: string;
+  limite?: number;
+  pagina?: number;
+}
+
+export interface ListaOcorrenciasResponse {
+  total: number;
+  pagina: number;
+  limite: number;
+  resumo: ResumoStatusOcorrencias; // contagem por status na cidade/filtros, sem considerar o filtro de status
+  ocorrencias: Ocorrencia[];
+}
+
+export interface OcorrenciaResponse {
+  ocorrencia: Ocorrencia;
+}
+
+// status, origem e autor são definidos pelo servidor; para USUARIO a cidade é sempre a do cadastro
+export interface NovaOcorrenciaPayload {
+  cidade?: string;
+  titulo: string;
+  descricao: string;
+  tipo: TipoOcorrencia;
+  local: string;
+  estacaoNome?: string;
+}
