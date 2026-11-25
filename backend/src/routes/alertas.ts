@@ -22,6 +22,7 @@ const router = Router();
 
 const LIMITE_PADRAO = 50;
 const LIMITE_MAXIMO = 200;
+const ID_MAXIMO = 2147483647; // limite do INTEGER do PostgreSQL (acima disso a consulta falharia com 500)
 
 // Todas as rotas exigem token válido. O perfil e a cidade vêm do banco, nunca do token ou da requisição.
 router.use(authMiddleware);
@@ -30,7 +31,7 @@ const cidadeSuportada = (cidade: string) => Object.prototype.hasOwnProperty.call
 
 const lerId = (req: Request) => {
   const id = Number(req.params.id);
-  return Number.isInteger(id) && id > 0 ? id : null;
+  return Number.isInteger(id) && id > 0 && id <= ID_MAXIMO ? id : null;
 };
 
 // Parâmetro de query que, se presente, precisa ser UM texto não vazio (nada de ?a=1&a=2)

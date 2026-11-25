@@ -57,3 +57,40 @@ CREATE INDEX IF NOT EXISTS idx_alertas_poluente ON alertas(poluente);
 CREATE INDEX IF NOT EXISTS idx_alertas_medicao_em ON alertas(medicao_em DESC);
 -- Trava de duplicidade: só um alerta ATIVO por cidade + estação + poluente
 CREATE UNIQUE INDEX IF NOT EXISTS uq_alertas_ativo ON alertas(cidade, estacao_id, poluente) WHERE status = 'ATIVO';
+-- Ocorrências ambientais. Registro MANUAL feito por usuários (origem MANUAL) e, no futuro, gerado a partir dos
+-- alertas (origem AUTOMATICA; ainda não integrado). Regras e permissões: backend/docs/OCORRENCIAS.md
+CREATE TABLE IF NOT EXISTS ocorrencias (
+  id SERIAL PRIMARY KEY,
+  usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+  cidade VARCHAR(80) NOT NULL,
+  local VARCHAR(160) NOT NULL,
+  estacao_id VARCHAR(40),
+  estacao_nome VARCHAR(255),
+  tipo VARCHAR(12) NOT NULL CHECK (tipo IN ('POLUICAO', 'QUEIMADA', 'EMISSAO', 'COMUNIDADE', 'NORMALIZACAO')),
+  titulo VARCHAR(160) NOT NULL,
+  descricao TEXT NOT NULL,
+  status VARCHAR(12) NOT NULL DEFAULT 'ABERTA' CHECK (status IN ('ABERTA', 'EM_ANDAMENTO', 'CONCLUIDA')),
+  origem VARCHAR(10) NOT NULL CHECK (origem IN ('AUTOMATICA', 'MANUAL')),
+  poluente VARCHAR(10) CHECK (poluente IS NULL OR poluente IN ('pm25', 'pm10', 'o3', 'no2', 'co', 'so2')),
+  valor DOUBLE PRECISION CHECK (valor IS NULL OR valor >= 0),
+  unidade VARCHAR(20),
+  nivel VARCHAR(10) CHECK (nivel IS NULL OR nivel IN ('BAIXO', 'MODERADO', 'ALTO', 'CRITICO')),
+  criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  iniciado_em TIMESTAMPTZ,
+  atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  concluido_em TIMESTAMPTZ,
+  -- concluido_em só existe (e sempre existe) em ocorrência CONCLUIDA
+  CONSTRAINT ck_ocorrencias_conclusao CHECK ((status = 'CONCLUIDA') = (concluido_em IS NOT NULL)),
+  -- ocorrência AUTOMATICA não tem usuário (MANUAL guarda quem registrou; vira NULL se o usuário for removido)
+  CONSTRAINT ck_ocorrencias_origem_usuario CHECK (origem <> 'AUTOMATICA' OR usuario_id IS NULL),
+  -- leitura ambiental completa ou ausente: poluente, valor e unidade andam juntos; nível exige poluente
+  CONSTRAINT ck_ocorrencias_leitura CHECK (
+    ((poluente IS NULL) = (valor IS NULL)) AND ((poluente IS NULL) = (unidade IS NULL)) AND (nivel IS NULL OR poluente IS NOT NULL)
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_ocorrencias_cidade ON ocorrencias(cidade);
+CREATE INDEX IF NOT EXISTS idx_ocorrencias_status ON ocorrencias(status);
+CREATE INDEX IF NOT EXISTS idx_ocorrencias_tipo ON ocorrencias(tipo);
+CREATE INDEX IF NOT EXISTS idx_ocorrencias_criado_em ON ocorrencias(criado_em DESC);
+CREATE INDEX IF NOT EXISTS idx_ocorrencias_usuario ON ocorrencias(usuario_id);

@@ -67,6 +67,9 @@ export const requireAdmin = async (req: Request, res: Response, next: NextFuncti
 };
 
 export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
+  // Erros do leitor de JSON do Express: corpo malformado ou grande demais são erro do cliente, não do servidor
+  if (err?.type === 'entity.parse.failed') return res.status(400).json({ error: 'JSON inválido' });
+  if (err?.type === 'entity.too.large') return res.status(413).json({ error: 'Corpo da requisição grande demais' });
   console.error(err);
   res.status(500).json({ error: 'Erro interno do servidor' });
 };

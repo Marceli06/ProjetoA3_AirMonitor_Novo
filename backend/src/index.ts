@@ -6,6 +6,7 @@ import dashboardRoutes from './routes/dashboard';
 import adminRoutes from './routes/admin';
 import airQualityRoutes from './routes/airQuality';
 import alertasRoutes from './routes/alertas';
+import ocorrenciasRoutes from './routes/ocorrencias';
 import { errorHandler } from './middlewares';
 import pool from './database';
 
@@ -39,6 +40,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/air-quality', airQualityRoutes);
 app.use('/api/alertas', alertasRoutes);
+app.use('/api/ocorrencias', ocorrenciasRoutes);
 
 // Error handler
 app.use(errorHandler);
