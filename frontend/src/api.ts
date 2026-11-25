@@ -2,7 +2,7 @@
 import { EstacoesArResponse, UltimasMedicoesArResponse, RegisterPayload, UsuarioAdmin, DadosUsuarioForm, NovoUsuarioData, SessaoResponse,
   ResumoAdminResponse, ConfiguracoesSistema, EstacoesAdminResponse, FiltrosAlertas, ListaAlertasResponse, AlertaResponse,
   ResumoAvaliacaoAlertasResponse, FiltrosOcorrenciasAPI, ListaOcorrenciasResponse, OcorrenciaResponse, NovaOcorrenciaPayload,
-  StatusOcorrencia, FiltrosHistoricoAPI, HistoricoResponse } from './types';
+  StatusOcorrencia, FiltrosHistoricoAPI, HistoricoResponse, ModeloCidadeResponse } from './types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -79,6 +79,8 @@ export const airQualityAPI = {
     api.get<EstacoesArResponse>('/air-quality/locations', { params: { cidade, limite, raio: 25000 } }),
   ultimasMedicoes: (estacaoId: number) =>
     api.get<UltimasMedicoesArResponse>(`/air-quality/locations/${estacaoId}/latest`),
+  // Último recurso com a OpenAQ fora do ar: estimativa do modelo no centro da cidade (sem estação)
+  modeloPorCidade: (cidade: string) => api.get<ModeloCidadeResponse>('/air-quality/modelo', { params: { cidade } }),
 };
 
 // Alertas gerados pelo backend. A cidade e o perfil são validados no servidor: USUARIO só acessa a própria cidade

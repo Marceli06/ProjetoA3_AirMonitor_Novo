@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middlewares';
 import { OpenAQError } from '../integrations/openaq/client';
-import { buscarEstacoes, obterEstacao, obterUltimasMedicoes } from '../services/airQuality';
+import { buscarEstacoes, consultarOpenMeteo, obterEstacao, obterUltimasMedicoes } from '../services/airQuality';
+import { consolidarModeloDaCidade } from '../services/consolidador';
 import { COORDENADAS_CIDADES } from '../data/cidadesCoordenadas';
 
 const router = Router();
@@ -124,6 +125,23 @@ router.get('/locations/:id/latest', async (req: Request, res: Response) => {
   } catch (error) {
     responderErro(res, error);
   }
+});
+
+// GET /api/air-quality/modelo?cidade=São Paulo — estimativa do modelo (Open-Meteo) no centro da cidade. É o último
+// recurso do Dashboard quando a OpenAQ está fora do ar e nenhuma estação pôde ser consultada: os valores vêm
+// identificados como MODELO, sem estação, e nunca são apresentados como medição.
+router.get('/modelo', async (req: Request, res: Response) => {
+  const { cidade } = req.query;
+  const centro = typeof cidade === 'string' && Object.prototype.hasOwnProperty.call(COORDENADAS_CIDADES, cidade)
+    ? COORDENADAS_CIDADES[cidade]
+    : null;
+  if (!centro) return res.status(400).json({ error: 'Cidade inválida' });
+
+  const resultado = consolidarModeloDaCidade(await consultarOpenMeteo(centro.latitude, centro.longitude));
+  if (resultado.fontesUtilizadas.length === 0) {
+    return res.status(503).json({ error: 'A estimativa do modelo (Open-Meteo) está indisponível no momento', codigo: 'OPEN_METEO_INDISPONIVEL' });
+  }
+  res.json({ ...resultado, cidade, origem: { cidade, latitude: centro.latitude, longitude: centro.longitude } });
 });
 
 export default router;

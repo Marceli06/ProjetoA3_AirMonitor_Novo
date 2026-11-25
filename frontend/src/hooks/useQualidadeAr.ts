@@ -42,6 +42,8 @@ const VAZIO: QualidadeAr = {
 
 // Escolhe a estação mais próxima do centro da cidade (o backend já devolve ordenado por distância)
 // e carrega as medições consolidadas (OpenAQ + Open-Meteo) dela. Nada é inventado: sem dado, sem valor.
+// Se a OpenAQ estiver fora do ar e nenhuma estação puder ser consultada, usa a estimativa do modelo (Open-Meteo)
+// para a cidade, sempre identificada como estimativa (sem estação).
 export function useQualidadeAr(cidade: string): QualidadeAr {
   const [estado, setEstado] = useState<QualidadeAr>(VAZIO);
 
@@ -49,9 +51,31 @@ export function useQualidadeAr(cidade: string): QualidadeAr {
     let cancelado = false;
     setEstado(VAZIO);
 
+    const usarModelo = async () => {
+      try {
+        const { data } = await airQualityAPI.modeloPorCidade(cidade);
+        if (cancelado) return true;
+        setEstado({
+          loading: false,
+          erro: null,
+          estacao: null,
+          distanciaMetros: null,
+          medicoes: data.medicoes,
+          atualizadoEm: data.atualizadoEm,
+          statusFontes: data.statusFontes,
+          atribuicoes: data.atribuicoes,
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
     (async () => {
       try {
         const lista = await airQualityAPI.estacoesPorCidade(cidade);
+        // Saiu da tela (logout ou troca de cidade) enquanto buscava as estações: não consulta as medições
+        if (cancelado) return;
         const maisProxima = lista.data.estacoes[0];
 
         if (!maisProxima) {
@@ -75,13 +99,12 @@ export function useQualidadeAr(cidade: string): QualidadeAr {
           atribuicoes: ultimas.data.atribuicoes,
         });
       } catch (err: any) {
-        if (!cancelado) {
-          setEstado({
-            ...VAZIO,
-            loading: false,
-            erro: err?.response?.data?.error || 'Não foi possível carregar os dados de qualidade do ar.',
-          });
-        }
+        if (cancelado || (await usarModelo())) return;
+        setEstado({
+          ...VAZIO,
+          loading: false,
+          erro: err?.response?.data?.error || 'Não foi possível carregar os dados de qualidade do ar.',
+        });
       }
     })();
 

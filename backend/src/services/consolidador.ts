@@ -98,12 +98,15 @@ const semDado = (base: Base, motivo: MedicaoConsolidada['motivo'], motivoFallbac
   motivoFallback,
 });
 
-function montarResultado(
-  estacao: Estacao,
+// Mesmo formato de UltimasMedicoesConsolidadas; a estação é null quando os valores vêm só do modelo, sem estação
+export type ResultadoConsolidado<E extends Estacao | null = Estacao> = Omit<UltimasMedicoesConsolidadas, 'estacao'> & { estacao: E };
+
+function montarResultado<E extends Estacao | null>(
+  estacao: E,
   medicoes: MedicaoConsolidada[],
   openMeteo: ResultadoOpenMeteo,
   erroOpenAQ: string | null
-): UltimasMedicoesConsolidadas {
+): ResultadoConsolidado<E> {
   const fontesUtilizadas = (['OPENAQ', 'OPEN_METEO'] as Fonte[]).filter((fonte) =>
     medicoes.some((m) => m.disponivel && m.fonte === fonte)
   );
@@ -143,6 +146,15 @@ export function consolidar(openaq: UltimasMedicoes, openMeteo: ResultadoOpenMete
   return montarResultado(openaq.estacao, medicoes, openMeteo, null);
 }
 
+const medicoesSoDoModelo = (openMeteo: ResultadoOpenMeteo, agora: Date): MedicaoConsolidada[] =>
+  POLUENTES.map(({ chave, nome }): MedicaoConsolidada => {
+    const base = { chave, poluente: nome };
+    const alternativa = openMeteo.status === 'ok' ? openMeteo.dados.valores[chave] : undefined;
+    return alternativa
+      ? daOpenMeteo(base, alternativa, 'openaq_indisponivel', agora)
+      : semDado(base, 'openaq_indisponivel', motivoDoFallback(openMeteo));
+  });
+
 // OpenAQ inteira indisponível (timeout, rate limit, 5xx): tudo o que existir vem da Open-Meteo,
 // na coordenada da estação já conhecida. O que a Open-Meteo não tiver fica indisponível.
 export function consolidarSemOpenAQ(
@@ -151,13 +163,11 @@ export function consolidarSemOpenAQ(
   openMeteo: ResultadoOpenMeteo,
   agora = new Date()
 ): UltimasMedicoesConsolidadas {
-  const medicoes = POLUENTES.map(({ chave, nome }): MedicaoConsolidada => {
-    const base = { chave, poluente: nome };
-    const alternativa = openMeteo.status === 'ok' ? openMeteo.dados.valores[chave] : undefined;
-    return alternativa
-      ? daOpenMeteo(base, alternativa, 'openaq_indisponivel', agora)
-      : semDado(base, 'openaq_indisponivel', motivoDoFallback(openMeteo));
-  });
+  return montarResultado(estacao, medicoesSoDoModelo(openMeteo, agora), openMeteo, erroOpenAQ);
+}
 
-  return montarResultado(estacao, medicoes, openMeteo, erroOpenAQ);
+// OpenAQ fora do ar e nenhuma estação conhecida (ex.: servidor recém-iniciado): estimativa do modelo no centro da
+// cidade, sem estação. Os valores continuam identificados como MODELO, nunca como medição.
+export function consolidarModeloDaCidade(openMeteo: ResultadoOpenMeteo, agora = new Date()): ResultadoConsolidado<null> {
+  return montarResultado(null, medicoesSoDoModelo(openMeteo, agora), openMeteo, 'sem_estacao');
 }

@@ -108,6 +108,12 @@ export interface UltimasMedicoesArResponse {
   atribuicoes: string[];
 }
 
+// Estimativa do modelo (Open-Meteo) no centro da cidade, usada quando a OpenAQ está fora do ar e não há estação
+export interface ModeloCidadeResponse extends Omit<UltimasMedicoesArResponse, 'estacao'> {
+  estacao: null;
+  cidade: string;
+}
+
 // ---- Painel administrativo (respostas de /api/admin)
 export interface ResumoUsuarios {
   total: number;
