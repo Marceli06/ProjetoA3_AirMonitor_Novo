@@ -10,6 +10,8 @@ import { RAIO_MAXIMO_M, responderErro } from './airQuality';
 
 const router = Router();
 const SALT_ROUNDS = 12;
+const ID_MAXIMO = 2147483647; // limite do INTEGER do PostgreSQL (acima disso a consulta falharia com 500)
+const MAX_BYTES_SENHA = 72; // o bcrypt ignora o que passa de 72 bytes
 const COLUNAS_USUARIO = 'id, nome, email, perfil, ativo, cidade, regiao, criado_em';
 
 // Todas as rotas deste arquivo exigem token válido e perfil ADMIN
@@ -28,14 +30,14 @@ const regiaoValida = (cidade: unknown, regiao: unknown) => {
 const validarDadosBasicos = (nome: unknown, email: unknown, cidade: unknown, regiao: unknown) => {
   if (!nome || !email || !cidade || !regiao) return 'Nome, e-mail, cidade e região são obrigatórios';
   if (String(nome).trim().length < 2 || String(nome).trim().length > 120) return 'Nome deve ter entre 2 e 120 caracteres';
-  if (!EMAIL_REGEX.test(normalizarEmail(email))) return 'E-mail inválido';
+  if (!EMAIL_REGEX.test(normalizarEmail(email)) || normalizarEmail(email).length > 255) return 'E-mail inválido';
   if (!regiaoValida(cidade, regiao)) return 'Cidade ou região inválida';
   return null;
 };
 
 const lerId = (req: Request) => {
   const id = Number(req.params.id);
-  return Number.isInteger(id) && id > 0 ? id : null;
+  return Number.isInteger(id) && id > 0 && id <= ID_MAXIMO ? id : null;
 };
 
 // Cidades e regiões aceitas (mesma fonte usada na validação do backend)
@@ -63,6 +65,9 @@ router.post('/usuarios', async (req: Request, res: Response) => {
 
     if (typeof password !== 'string' || password.length < 6) {
       return res.status(400).json({ error: 'A senha deve ter no mínimo 6 caracteres' });
+    }
+    if (Buffer.byteLength(password, 'utf8') > MAX_BYTES_SENHA) {
+      return res.status(400).json({ error: 'A senha deve ter no máximo 72 caracteres' });
     }
 
     const senhaHash = await bcrypt.hash(password, SALT_ROUNDS);

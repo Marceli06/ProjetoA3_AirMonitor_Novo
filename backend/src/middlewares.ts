@@ -2,6 +2,7 @@
 import jwt from 'jsonwebtoken';
 import { JWTPayload, Usuario } from './types';
 import pool from './database';
+import { JWT_SECRET } from './config';
 
 declare global {
   namespace Express {
@@ -22,7 +23,7 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
 
   let decoded: JWTPayload;
   try {
-    decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as JWTPayload;
+    decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
   } catch (error) {
     return res.status(401).json({ error: 'Token inválido' });
   }

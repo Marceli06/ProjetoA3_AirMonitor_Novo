@@ -10,6 +10,7 @@ const RAIO_PADRAO_M = 10000;
 export const RAIO_MAXIMO_M = 25000; // limite da OpenAQ
 const LIMITE_PADRAO = 20;
 const LIMITE_MAXIMO = 100;
+const ID_MAXIMO = 2147483647; // IDs de estação são inteiros de 32 bits; acima disso nem vale consultar a OpenAQ
 
 // Qualquer usuário autenticado e ativo pode consultar; a chave da OpenAQ nunca sai do backend
 router.use(authMiddleware);
@@ -47,7 +48,7 @@ const lerNumero = (valor: unknown) => (typeof valor === 'string' && valor.trim()
 
 const lerId = (req: Request) => {
   const id = Number(req.params.id);
-  return Number.isInteger(id) && id > 0 ? id : null;
+  return Number.isInteger(id) && id > 0 && id <= ID_MAXIMO ? id : null;
 };
 
 // GET /api/air-quality/locations?cidade=São Paulo   (ou ?lat=-23.55&lon=-46.63)

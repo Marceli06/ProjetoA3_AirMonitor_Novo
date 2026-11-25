@@ -5,25 +5,29 @@ import pool from '../database';
 import { Usuario, JWTPayload, Perfil } from '../types';
 import { CIDADES } from '../data/cidades';
 import { authMiddleware } from '../middlewares';
+import { JWT_SECRET } from '../config';
 
 const router = Router();
 const SALT_ROUNDS = 12;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_BYTES_SENHA = 72; // o bcrypt ignora o que passa de 72 bytes
 
 const normalizarEmail = (email: string) => String(email).trim().toLowerCase();
 
 const gerarToken = (id: number, email: string, perfil: Perfil) =>
   jwt.sign(
     { userId: id, email, perfil } as JWTPayload,
-    process.env.JWT_SECRET || 'secret',
+    JWT_SECRET,
     { expiresIn: '24h' }
   );
 
 // Login
 router.post('/login', async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body ?? {};
 
-    if (!email || !password) {
+    // Só texto: número, objeto ou lista no JSON derrubariam o bcrypt (500) em vez de responder 400
+    if (typeof email !== 'string' || typeof password !== 'string' || !email.trim() || !password) {
       return res.status(400).json({ error: 'Email e senha são obrigatórios' });
     }
 
@@ -77,10 +81,18 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
 // Cadastro público: sempre cria USUARIO; o perfil enviado pelo cliente é ignorado
 router.post('/register', async (req: Request, res: Response) => {
   try {
-    const { nome, email, password, confirmPassword, cidade, regiao } = req.body;
+    const { nome, email, password, confirmPassword, cidade, regiao } = req.body ?? {};
 
-    if (!nome || !email || !password || !confirmPassword || !cidade || !regiao) {
+    if ([nome, email, password, confirmPassword, cidade, regiao].some((c) => typeof c !== 'string' || c.trim() === '')) {
       return res.status(400).json({ error: 'Todos os campos são obrigatórios' });
+    }
+
+    if (nome.trim().length < 2 || nome.trim().length > 120) {
+      return res.status(400).json({ error: 'Nome deve ter entre 2 e 120 caracteres' });
+    }
+
+    if (email.trim().length > 255 || !EMAIL_REGEX.test(normalizarEmail(email))) {
+      return res.status(400).json({ error: 'E-mail inválido' });
     }
 
     if (password !== confirmPassword) {
@@ -89,6 +101,10 @@ router.post('/register', async (req: Request, res: Response) => {
 
     if (password.length < 6) {
       return res.status(400).json({ error: 'A senha deve ter no mínimo 6 caracteres' });
+    }
+
+    if (Buffer.byteLength(password, 'utf8') > MAX_BYTES_SENHA) {
+      return res.status(400).json({ error: 'A senha deve ter no máximo 72 caracteres' });
     }
 
     const regioesDaCidade = Object.prototype.hasOwnProperty.call(CIDADES, cidade) ? CIDADES[cidade] : [];
