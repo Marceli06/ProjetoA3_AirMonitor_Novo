@@ -15,7 +15,10 @@
     "dashboard:validate": "tsx src/scripts/validateDashboard.ts",
     "alertas:validate": "tsx src/scripts/validateAlertas.ts",
     "ocorrencias:validate": "tsx src/scripts/validateOcorrencias.ts",
-    "historico:validate": "tsx src/scripts/validateHistorico.ts"
+    "historico:validate": "tsx src/scripts/validateHistorico.ts",
+    "auth:validate": "tsx src/scripts/validateAuth.ts",
+    "validate:all": "tsx src/scripts/validateTudo.ts",
+    "ui:validate": "node scripts/validateTudoUI.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

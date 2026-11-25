@@ -427,7 +427,7 @@ async function main() {
   await caso('A16', 'usuário desativado com token antigo perde o acesso a TODAS as rotas autenticadas (401) e volta ao reativar', async () => {
     const alvo = await novoUsuario('ADMIN');
     const { token } = await login(alvo);
-    const rotas = ['/admin/resumo', '/admin/usuarios', '/auth/me', '/dashboard', '/air-quality/locations?cidade=' + encodeURIComponent('Osasco')];
+    const rotas = ['/admin/resumo', '/admin/usuarios', '/auth/me', '/alertas?cidade=Osasco', '/air-quality/locations?cidade=' + encodeURIComponent('Osasco')];
     const antes = await Promise.all(rotas.map((p) => http(p, { token })));
     afirmar(antes.every((x) => x.status !== 401 && x.status !== 403), 'com o usuário ativo: ' + statusDe(antes));
     const off = await http(`/admin/usuarios/${alvo.id}/status`, { method: 'PATCH', token: tokenAdmin, corpo: { ativo: false } });
@@ -504,7 +504,7 @@ async function main() {
       afirmar(/Usuário Admin/.test(await avaliar(`document.querySelector('.dash-topbar').innerText`)), 'topo sem "Usuário Admin"');
       afirmar(!!(await guardado('authToken')) && JSON.parse(await guardado('user')).perfil === 'ADMIN', 'sessão não gravada no armazenamento');
     });
-    await caso('B02', 'Dashboard Admin: 5 contadores reais (iguais ao banco), qualidade do ar, estações e aviso de "ilustrativo"', async () => {
+    await caso('B02', 'Dashboard Admin: 5 contadores reais (iguais ao banco), qualidade do ar, estações e cartões reais (sem dados ilustrativos)', async () => {
       await esperarContadores();
       await esperar(`document.querySelectorAll('.pollutant').length === 6 && !/Carregando/.test(document.querySelector('.dash-pollutants').innerText)`, 30000, 'poluentes carregados');
       await esperar(`!!document.querySelector('.admin-station-list li') || /Nenhuma|indispon|Não foi/.test(document.querySelector('.admin-station-list').innerText)`, 30000, 'lista de estações');
@@ -513,7 +513,9 @@ async function main() {
       afirmar(JSON.stringify(tiles) === JSON.stringify([b.total, b.ativos, b.inativos, b.admins, b.comuns]), `tela=${tiles} banco=${[b.total, b.ativos, b.inativos, b.admins, b.comuns]}`);
       const cards = await avaliar(`[...document.querySelectorAll('.pollutant')].map(c => ({n: c.querySelector('.pollutant-name strong').innerText, v: c.querySelector('.pollutant-value b')?.innerText ?? null}))`);
       const estacoes = await avaliar(`document.querySelectorAll('.admin-station-list li').length`);
-      afirmar(/ilustrativo/i.test(await avaliar(`document.querySelector('.quality-note').innerText`)), 'IQA sem aviso de ilustrativo');
+      await esperar(`!/Carregando/.test(document.querySelector('[data-testid="dash-alertas"]').innerText) && !/Carregando/.test(document.querySelector('[data-testid="dash-historico"]').innerText)`, 45000, 'alertas e histórico carregados');
+      afirmar(!/ilustrativ/i.test(await avaliar(`document.querySelector('.dash-main').innerText`)), 'sobrou texto de dados ilustrativos no Dashboard');
+      afirmar(/provisórios/i.test(await avaliar(`document.querySelector('.dash-quality .quality-note').innerText`)), 'cartão de situação sem a nota dos limiares provisórios');
       await foto('01-dashboard-admin');
       return `contadores=${tiles}; poluentes com valor=${cards.filter((c) => c.v).length}/6; estações no card=${estacoes}`;
     });
@@ -622,9 +624,9 @@ async function main() {
       await foto('04-relatorios');
       return `contadores=${v}`;
     });
-    await caso('B11', 'Histórico segue placeholder; Alertas e Ocorrências abrem as telas implementadas (navegação funcionando)', async () => {
+    await caso('B11', 'Histórico, Alertas e Ocorrências abrem as telas implementadas (navegação funcionando)', async () => {
       afirmar(await clicarMenu('Histórico'), 'menu Histórico');
-      await esperar(`/Esta tela ainda não foi implementada/.test(document.querySelector('.dash-main').innerText) && document.querySelector('.dash-main h2').innerText.trim() === 'Histórico'`, 5000, 'placeholder Histórico');
+      await esperar(`!!document.querySelector('.hist-page') && !/Esta tela ainda não foi implementada/.test(document.querySelector('.dash-main').innerText)`, 8000, 'tela de Histórico implementada');
       for (const [m, titulo] of [['Alertas', 'Alertas de Qualidade do Ar'], ['Ocorrências', 'Ocorrências Ambientais']]) {
         afirmar(await clicarMenu(m), 'menu ' + m);
         await esperar(`document.querySelector('.dash-main h1')?.innerText.trim() === ${JSON.stringify(titulo)}`, 8000, 'tela ' + m);

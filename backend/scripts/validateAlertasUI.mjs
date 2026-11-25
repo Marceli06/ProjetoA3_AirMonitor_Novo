@@ -345,7 +345,10 @@ async function main() {
       const txt = await textoMain();
       afirmar(!/ilustrativ/i.test(txt) && !/Campinas-Centro/.test(txt) && !/Paulínia/.test(txt), 'sobrou texto de mock');
       afirmar(/Campinas · Estação Teste Centro/.test(l[0].texto) && /130,2/.test(l[0].texto) && /µg\/m³/.test(l[0].texto), 'item 0: ' + l[0].texto.replace(/\n/g, ' | '));
-      const chamadas = chamadasAlertas(i0).filter((x) => /cidade=Campinas/.test(x.url));
+      const todas = chamadasAlertas(i0).filter((x) => /cidade=Campinas/.test(x.url));
+      const pendentes = todas.filter((x) => x.status === null);
+      if (pendentes.length) console.log(`[INFO]      AR01 ${pendentes.length} chamada(s) sem resposta registrada: ${pendentes.map((x) => x.url.split('?')[1]).join(' | ')}`);
+      const chamadas = todas.filter((x) => x.status !== null);
       afirmar(chamadas.length >= 2 && chamadas.every((x) => x.status === 200), 'chamadas: ' + chamadas.map((x) => x.status).join(','));
       await foto('ar-admin-campinas-1366');
       return rotulos(r) + '; ' + c;

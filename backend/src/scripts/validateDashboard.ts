@@ -32,9 +32,25 @@ async function chamar(caminho: string, opcoes: { token?: string; corpo?: unknown
 
 const emails: string[] = [];
 
+// Usuário temporário só para as validações de entrada (apagado no final, como os demais)
+async function tokenDeTeste() {
+  const email = `tmp.dash.${Date.now()}.${emails.length}@example.com`;
+  const senha = `Tmp-${Math.random().toString(36).slice(2)}-9`;
+  emails.push(email);
+  const reg = await chamar('/auth/register', { corpo: { nome: 'Teste Dashboard', email, password: senha, confirmPassword: senha, cidade: 'Campinas', regiao: 'Centro' } });
+  return reg.corpo?.token as string | undefined;
+}
+
 async function main() {
   const semToken = await chamar('/air-quality/locations?cidade=S%C3%A3o%20Paulo&limite=1&raio=25000');
   check(semToken.status === 401, 'sem token -> 401', `sem token devolveu ${semToken.status}`);
+  const modeloSemToken = await chamar('/air-quality/modelo?cidade=Campinas');
+  check(modeloSemToken.status === 401, 'GET /modelo sem token -> 401', `GET /modelo sem token devolveu ${modeloSemToken.status}`);
+
+  const modeloSemCidade = await chamar('/air-quality/modelo', { token: await tokenDeTeste() });
+  check(modeloSemCidade.status === 400, 'GET /modelo sem cidade -> 400', `GET /modelo sem cidade devolveu ${modeloSemCidade.status}`);
+  const modeloInvalido = await chamar(`/air-quality/modelo?cidade=${encodeURIComponent("Atlantis'; DROP TABLE usuarios;--")}`, { token: await tokenDeTeste() });
+  check(modeloInvalido.status === 400, 'GET /modelo com cidade inválida -> 400', `GET /modelo inválido devolveu ${modeloInvalido.status}`);
 
   for (const cidade of CIDADES_TESTE) {
     console.log(`\n=== Usuário cadastrado em ${cidade} ===`);
@@ -51,6 +67,20 @@ async function main() {
       `login devolve user.cidade/regiao (${login.corpo?.user?.cidade}/${login.corpo?.user?.regiao})`, `login: HTTP ${login.status} user=${JSON.stringify(login.corpo?.user)}`);
     const token = login.corpo?.token;
     if (!token) { falha('login sem token'); continue; }
+
+    // Último recurso do Dashboard com a OpenAQ fora do ar: estimativa do modelo (Open-Meteo), sem estação
+    const modelo = await chamar(`/air-quality/modelo?cidade=${encodeURIComponent(cidade)}`, { token });
+    if (modelo.status === 503) {
+      console.log(`  [INFO]  GET /modelo -> 503: Open-Meteo indisponível agora (falha de serviço externo, não do sistema)`);
+    } else {
+      check(modelo.status === 200 && modelo.corpo?.estacao === null && modelo.corpo?.cidade === cidade,
+        'GET /modelo -> 200 sem estação, com a cidade pedida', `GET /modelo -> ${modelo.status} ${JSON.stringify(modelo.corpo)?.slice(0, 160)}`);
+      const medicoesModelo: any[] = modelo.corpo?.medicoes ?? [];
+      const comValor = medicoesModelo.filter((m) => m.disponivel);
+      check(comValor.length > 0 && comValor.every((m) => m.fonte === 'OPEN_METEO' && m.tipoDado === 'MODELO'),
+        `GET /modelo: ${comValor.length} poluente(s) com valor, todos identificados como MODELO (nunca medição de estação)`, 'valor do modelo apresentado como medição');
+      check(Array.isArray(modelo.corpo?.atribuicoes) && modelo.corpo.atribuicoes.some((a: string) => /Open-Meteo/.test(a)), 'GET /modelo traz a atribuição da Open-Meteo', 'atribuição da Open-Meteo ausente');
+    }
 
     const lista = await chamar(`/air-quality/locations?cidade=${encodeURIComponent(cidade)}&limite=1&raio=25000`, { token });
     check(lista.status === 200, `GET /locations -> 200 (${lista.corpo?.total} estação(ões))`, `GET /locations -> ${lista.status} ${JSON.stringify(lista.corpo)}`);
