@@ -57,11 +57,6 @@ export default function Login({ onForgotPassword, onCreateAccount, onLogin, noti
           </div>
           <span className="logo-text">AirMonitor</span>
         </div>
-        <nav className="header-nav">
-          <a href="#">Sobre</a>
-          <a href="#">Recursos</a>
-          <a href="#">Ajuda</a>
-        </nav>
       </header>
 
       {/* Main Content */}

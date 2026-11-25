@@ -717,3 +717,49 @@
   color: #5c7a99;
   font-size: 0.85rem;
 }
+
+/* Cartões com dados reais: tom de severidade (variáveis de Severidade.css) e estados vazios */
+.quality-ring.com-tom {
+  border-color: var(--tom-borda);
+  box-shadow: 0 0 18px var(--tom-borda);
+  color: var(--tom);
+}
+
+.quality-value.com-tom strong {
+  color: var(--tom);
+}
+
+.quality-value strong.quality-indisponivel {
+  color: #a76b00;
+}
+
+.quality-msg.com-tom {
+  background: var(--tom-bg);
+}
+
+.quality-msg.com-tom svg {
+  color: var(--tom);
+}
+
+.item-icon.com-tom {
+  background: var(--tom);
+}
+
+.dash-vazio {
+  margin: 0;
+  padding: 1rem 0.4rem;
+  color: #5c7a99;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.dash-vazio a,
+.quality-note a {
+  color: #0b5ed7;
+}
+
+.air-aviso {
+  margin: 0.5rem 0 0;
+  font-size: 0.7rem;
+  color: #8a5a00;
+}

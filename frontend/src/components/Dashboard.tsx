@@ -5,13 +5,18 @@ import SettingsPage from './SettingsPage';
 import ReportsPage from './ReportsPage';
 import AlertsPage from './AlertsPage';
 import OccurrencesPage from './OccurrencesPage';
-import HistoryPage from './HistoryPage';
+import HistoryPage, { GraficoEvolucao } from './HistoryPage';
 import Icon, { IconName } from './Icon';
 import { AdminStationSummary, AdminUserStats } from './AdminWidgets';
 import { CITIES } from './Register';
 import { CIDADE_PADRAO, lerUsuarioLogado, useQualidadeAr } from '../hooks/useQualidadeAr';
-import { MedicaoAr } from '../types';
+import { useAlertasAtivos, useHistoricoDoDia, useOcorrenciasRecentes } from '../hooks/useDashboardDados';
+import { MedicaoAr, StatusOcorrencia } from '../types';
+import { ROTULO_NIVEL, formatarValorAlerta, nomePoluente, rotuloOrigem, tempoRelativo, tomDoAlerta } from '../utils/alertas';
 import { POLLUTANTS, ROTULO_FONTE, formatarDataHora, formatarDistancia, formatarValor } from '../utils/formatar';
+import { ROTULO_ORIGEM_HIST } from '../utils/historico';
+import { ROTULO_STATUS_OC, TOM_STATUS, formatarIdOcorrencia, partesDataHora } from '../utils/ocorrencias';
+import './Severidade.css';
 import './Dashboard.css';
 
 export type UserRole = 'admin' | 'user';
@@ -38,29 +43,6 @@ const ADMIN_MENU: { label: string; icon: IconName }[] = [
 
 const CIDADES = Object.keys(CITIES);
 
-const RANGE_TABS = ['IQA', 'PM2.5', 'PM10', 'O₃', 'NO₂', 'CO', 'SO₂'];
-
-const HISTORY = [28, 35, 38, 44, 50, 54, 58, 63, 70, 86, 96, 90, 78, 72, 69, 66, 60, 52, 50, 50, 44, 38, 36, 34];
-
-const ADMIN_ALERTS = [
-  { tone: 'warning', title: 'Qualidade moderada prevista', text: 'Aumento de O₃ nas próximas 24h.', date: '10/09/2026 14:20' },
-  { tone: 'ok', title: 'Sem alertas ativos', text: 'A qualidade do ar permanece estável na sua região.', date: '10/09/2026 09:15' },
-  { tone: 'info', title: 'Manutenção programada', text: 'Estação Centro - 12/09 das 08h às 12h.', date: '09/09/2026 18:40' },
-  { tone: 'warning', title: 'Concentração elevada de PM10', text: 'Região Norte - Atenção.', date: '09/09/2026 11:30' },
-];
-
-const USER_ALERTS = [
-  { tone: 'warning', title: 'Qualidade moderada prevista', text: 'Aumento de O₃ nas próximas 24h.', date: '10/09/2026 14:20' },
-  { tone: 'ok', title: 'Sem alertas ativos', text: 'A qualidade do ar permanece estável na sua região.', date: '10/09/2026 08:15' },
-  { tone: 'info', title: 'Manutenção programada', text: 'Estação Zona Leste - 12/09 das 08h às 12h.', date: '08/09/2026 16:30' },
-];
-
-const MY_OCCURRENCES = [
-  { title: 'Buraco na via', text: 'Registrada em 09/09/2026', status: 'Aguardando análise', tone: 'pending' },
-  { title: 'Queimada na região', text: 'Registrada em 05/09/2026', status: 'Em análise', tone: 'analysis' },
-  { title: 'Canteiro de obras', text: 'Registrada em 01/09/2026', status: 'Concluída', tone: 'ok' },
-];
-
 const ADMIN_QUICK = [
   { title: 'Gerenciar usuários', text: 'Cadastrar e editar usuários do sistema', icon: 'users' as IconName, menu: 'Usuários' },
   { title: 'Consultar estações', text: 'Estações obtidas das APIs ambientais', icon: 'antenna' as IconName, menu: 'Estações' },
@@ -68,11 +50,13 @@ const ADMIN_QUICK = [
   { title: 'Configurações', text: 'Informações do sistema e das integrações', icon: 'gear' as IconName, menu: 'Configurações' },
 ];
 
-const toneIcon = (tone: string): IconName => (tone === 'ok' ? 'check' : tone === 'info' ? 'info' : 'warning');
+const ICONE_STATUS_OC: Record<StatusOcorrencia, IconName> = { ABERTA: 'warning', EM_ANDAMENTO: 'clock', CONCLUIDA: 'check' };
+
+const ALERTAS_NO_CARTAO = 3;
 
 export default function Dashboard({ role, userName, onLogout }: DashboardProps) {
   const isAdmin = role === 'admin';
-  const [activeTab, setActiveTab] = useState('IQA');
+  const [poluenteHist, setPoluenteHist] = useState(POLLUTANTS[0].chave);
   const [activeMenu, setActiveMenu] = useState('Dashboard');
   // Cidade cadastrada do usuário (vem do login/cadastro). Usuário comum vê só a sua; admin pode trocar de cidade.
   const cidadeCadastrada = lerUsuarioLogado()?.cidade ?? '';
@@ -81,13 +65,21 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
   const [region, setRegion] = useState(cidadeUsuario || CIDADE_PADRAO);
   const qualidade = useQualidadeAr(region);
 
+  // Dados reais dos cartões. Os alertas também alimentam o selo do sino e são relidos a cada troca de tela,
+  // para refletir alertas avaliados ou resolvidos nas outras páginas.
+  const noDashboard = activeMenu === 'Dashboard';
+  const alertas = useAlertasAtivos(region, activeMenu);
+  const ocorrencias = useOcorrenciasRecentes(!isAdmin && noDashboard, region, activeMenu);
+  const historico = useHistoricoDoDia(noDashboard, region, poluenteHist);
+
   const displayName = isAdmin ? 'Administrador' : userName;
   const initials = isAdmin ? 'AD' : userName.slice(0, 2).toUpperCase();
-  const alerts = isAdmin ? ADMIN_ALERTS : USER_ALERTS;
 
-  const max = 100;
-  const points = HISTORY.map((v, i) => `${(i * 600) / (HISTORY.length - 1)},${200 - (v / max) * 200}`).join(' ');
-  const area = `0,200 ${points} 600,200`;
+  const totalAlertas = alertas.dados?.total ?? 0;
+  const maisGrave = alertas.dados?.maisGrave ?? null;
+  const tomGeral = maisGrave ? maisGrave.toLowerCase() : 'resolvido';
+  const agora = new Date();
+  const poluenteSelecionado = POLLUTANTS.find((p) => p.chave === poluenteHist) ?? POLLUTANTS[0];
 
   return (
     <div className="dash">
@@ -153,9 +145,16 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
           )}
 
           <div className="dash-topbar-right">
-            <button type="button" className="dash-bell" aria-label="Notificações">
+            <button
+              type="button"
+              className="dash-bell"
+              aria-label={totalAlertas > 0 ? `Alertas ativos em ${region}: ${totalAlertas}. Abrir Alertas` : 'Abrir Alertas'}
+              title="Ver alertas"
+              onClick={() => setActiveMenu('Alertas')}
+              data-testid="sino-alertas"
+            >
               <Icon name="bell" />
-              <span className="dash-badge">{isAdmin ? 4 : 3}</span>
+              {totalAlertas > 0 && <span className="dash-badge" data-testid="sino-contagem">{totalAlertas > 99 ? '99+' : totalAlertas}</span>}
             </button>
             <div className="dash-avatar">{initials}</div>
             <span className="dash-username">{displayName}</span>
@@ -177,11 +176,6 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
             <OccurrencesPage cidades={cidadesDisponiveis} cidade={region} onCidadeChange={setRegion} isAdmin={isAdmin} />
           ) : activeMenu === 'Histórico' ? (
             <HistoryPage cidades={cidadesDisponiveis} cidade={region} onCidadeChange={setRegion} />
-          ) : activeMenu !== 'Dashboard' ? (
-            <section className="dash-card">
-              <h2>{activeMenu}</h2>
-              <p className="dash-placeholder">Esta tela ainda não foi implementada.</p>
-            </section>
           ) : (
           <>
           <section className="dash-heading">
@@ -192,7 +186,7 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
             <div className="dash-filters">
               <label className="dash-select">
                 <Icon name="pin" />
-                <select value={region} onChange={(e) => setRegion(e.target.value)}>
+                <select value={region} onChange={(e) => setRegion(e.target.value)} aria-label="Cidade">
                   {cidadesDisponiveis.map((c) => (
                     <option key={c}>{c}</option>
                   ))}
@@ -212,25 +206,46 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
           {isAdmin && <AdminUserStats />}
 
           <div className="dash-row dash-row-top">
-            <section className="dash-card dash-quality">
-              <h2>Qualidade do ar agora</h2>
-              <div className="quality-ring"><Icon name="leaf" /></div>
-              <div className="quality-value">
-                <strong>Boa</strong>
-                <span>Índice de Qualidade do Ar (IQA)</span>
-                <b>32 <small>/ 500</small></b>
-              </div>
-              <div className="quality-msg">
-                <Icon name="smile" />
-                <p>A qualidade do ar está dentro dos níveis considerados adequados para a saúde.</p>
-              </div>
-              <p className="quality-note">Valor ilustrativo: o IQA ainda não é calculado a partir dos dados reais.</p>
+            <section className="dash-card dash-quality" data-testid="dash-situacao">
+              <h2>Situação do ar agora</h2>
+              {alertas.carregando ? (
+                <>
+                  <div className="quality-ring"><Icon name="leaf" /></div>
+                  <div className="quality-value"><strong>Carregando…</strong><span>Consultando os alertas de {region}</span></div>
+                </>
+              ) : alertas.erro ? (
+                <>
+                  <div className="quality-ring com-tom tom-moderado"><Icon name="warning" /></div>
+                  <div className="quality-value"><strong className="quality-indisponivel">Indisponível</strong><span>Não foi possível consultar os alertas</span></div>
+                  <p className="air-error" role="alert">{alertas.erro}</p>
+                </>
+              ) : (
+                <>
+                  <div className={`quality-ring com-tom tom-${tomGeral}`}><Icon name={maisGrave ? 'alert' : 'leaf'} /></div>
+                  <div className={`quality-value com-tom tom-${tomGeral}`}>
+                    <strong data-testid="situacao-titulo">{maisGrave ? `Nível ${ROTULO_NIVEL[maisGrave].toLowerCase()}` : 'Sem alertas ativos'}</strong>
+                    <span>{maisGrave ? 'Maior nível entre os alertas ativos' : `Nenhum alerta registrado em ${region}`}</span>
+                    {maisGrave && (
+                      <b>{totalAlertas} <small>{totalAlertas === 1 ? 'alerta ativo' : 'alertas ativos'}</small></b>
+                    )}
+                  </div>
+                  <div className={`quality-msg com-tom tom-${tomGeral}`}>
+                    <Icon name={maisGrave ? 'warning' : 'smile'} />
+                    <p>
+                      {maisGrave
+                        ? 'Há poluentes acima dos limites de referência. Consulte os detalhes na tela de Alertas.'
+                        : 'Os alertas são gerados quando o administrador avalia as medições; hoje não há nenhum ativo.'}
+                    </p>
+                  </div>
+                </>
+              )}
+              <p className="quality-note">Níveis calculados com limiares técnicos provisórios; o IQA oficial ainda não é calculado.</p>
             </section>
 
             <section className="dash-card dash-pollutants">
               <div className="card-head">
                 <h2>Principais poluentes</h2>
-                <a href="#">Ver todos <Icon name="arrow" /></a>
+                <a href="#" onClick={(e) => { e.preventDefault(); setActiveMenu('Histórico'); }}>Ver histórico <Icon name="arrow" /></a>
               </div>
               <div className="pollutant-grid">
                 {POLLUTANTS.map((p) => {
@@ -267,6 +282,11 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
                 })}
               </div>
               {qualidade.erro && <p className="air-error">{qualidade.erro}</p>}
+              {qualidade.statusFontes?.OPENAQ === 'falha' && (
+                <p className="air-aviso" role="status" data-testid="aviso-openaq">
+                  As estações da OpenAQ estão indisponíveis no momento; os valores abaixo são estimativas de modelo.
+                </p>
+              )}
               {qualidade.atribuicoes.map((a) => (
                 <p key={a} className="air-attribution">{a}</p>
               ))}
@@ -275,26 +295,22 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
             <section className="dash-card dash-station">
               <div className="card-head">
                 <h2>{isAdmin ? 'Estações de monitoramento' : 'Estação mais próxima'}</h2>
-                <a
-                  href="#"
-                  onClick={isAdmin ? (e) => { e.preventDefault(); setActiveMenu('Estações'); } : undefined}
-                >
-                  Ver todas <Icon name="arrow" />
-                </a>
+                {isAdmin && (
+                  <a href="#" onClick={(e) => { e.preventDefault(); setActiveMenu('Estações'); }}>
+                    Ver todas <Icon name="arrow" />
+                  </a>
+                )}
               </div>
               {isAdmin ? (
                 <AdminStationSummary cidade={region} />
               ) : (
-                <div className="map">
-                  <span className="map-label" style={{ left: '8%', top: '18%' }}>Itaquera</span>
-                  <span className="map-label" style={{ left: '62%', top: '14%' }}>Guaianazes</span>
-                  <span className="map-label" style={{ left: '40%', top: '52%' }}>São Mateus</span>
-                  <span className="map-pin" style={{ left: '44%', top: '40%' }}><Icon name="pin" /></span>
+                <div className="map" aria-hidden="true">
+                  <span className="map-pin" style={{ left: '50%', top: '58%' }}><Icon name="pin" /></span>
                 </div>
               )}
               <div className="station-info">
                 <div>
-                  <strong>{qualidade.estacao ? qualidade.estacao.nome || `Estação ${qualidade.estacao.id}` : qualidade.loading ? 'Carregando…' : 'Sem estação'}</strong>
+                  <strong>{qualidade.estacao ? qualidade.estacao.nome || `Estação ${qualidade.estacao.id}` : qualidade.loading ? 'Carregando…' : qualidade.statusFontes ? 'Estimativa de modelo' : 'Sem estação'}</strong>
                   <small>{isAdmin && 'Estação usada nos poluentes · '}{qualidade.estacao?.localidade || region}</small>
                 </div>
                 {isAdmin ? (
@@ -313,63 +329,112 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
           </div>
 
           <div className={`dash-row dash-row-bottom${isAdmin ? ' is-admin' : ' is-user'}`}>
-            <section className="dash-card dash-history">
+            <section className="dash-card dash-history" data-testid="dash-historico">
               <div className="card-head">
-                <h2><Icon name="chart" /> Histórico da qualidade do ar</h2>
-                <div className="range-tabs">
-                  {RANGE_TABS.map((t) => (
-                    <button key={t} type="button" className={activeTab === t ? 'active' : ''} onClick={() => setActiveTab(t)}>
-                      {t}
+                <h2><Icon name="chart" /> Últimas 24 horas</h2>
+                <div className="range-tabs" role="group" aria-label="Poluente do gráfico">
+                  {POLLUTANTS.map((p) => (
+                    <button
+                      key={p.chave}
+                      type="button"
+                      className={poluenteHist === p.chave ? 'active' : ''}
+                      aria-pressed={poluenteHist === p.chave}
+                      onClick={() => setPoluenteHist(p.chave)}
+                    >
+                      {p.name}
                     </button>
                   ))}
                 </div>
               </div>
-              <svg className="chart" viewBox="0 0 600 200" preserveAspectRatio="none">
-                <polygon points={area} className="chart-area" />
-                <polyline points={points} className="chart-line" />
-              </svg>
-              <div className="chart-axis">
-                {HISTORY.map((_, i) => (i % 2 === 0 ? <span key={i}>{String(i).padStart(2, '0')}h</span> : null))}
-              </div>
-              {isAdmin && <p className="quality-note">Dados ilustrativos: o histórico real será entregue na etapa de Histórico.</p>}
+              {historico.carregando ? (
+                <p className="dash-vazio" data-testid="historico-carregando">Carregando o histórico de {poluenteSelecionado.name}…</p>
+              ) : historico.erro ? (
+                <p className="air-error" role="alert">{historico.erro}</p>
+              ) : historico.dados && historico.dados.pontos.length > 0 ? (
+                <>
+                  <GraficoEvolucao
+                    compacto
+                    pontos={historico.dados.pontos}
+                    unidade={historico.dados.poluente.unidade ?? historico.dados.pontos[0].unidade}
+                    periodo={historico.dados.periodo}
+                    nomePoluente={historico.dados.poluente.nome}
+                  />
+                  <p className="quality-note">
+                    {ROTULO_ORIGEM_HIST[historico.dados.pontos[0].origem]}
+                    {historico.dados.estacao?.nome ? ` · ${historico.dados.estacao.nome}` : ''}
+                    {historico.dados.aviso ? ` · ${historico.dados.aviso}` : ''}
+                    {' · '}
+                    <a href="#" onClick={(e) => { e.preventDefault(); setActiveMenu('Histórico'); }}>Ver histórico completo</a>
+                  </p>
+                </>
+              ) : (
+                <p className="dash-vazio" data-testid="historico-vazio">
+                  {historico.dados?.mensagem ?? `Sem medições de ${poluenteSelecionado.name} nas últimas 24 horas em ${region}.`}
+                </p>
+              )}
             </section>
 
-            <section className="dash-card dash-alerts">
+            <section className="dash-card dash-alerts" data-testid="dash-alertas">
               <div className="card-head">
-                <h2><Icon name="bell" /> Alertas recentes</h2>
-                <a href="#" onClick={(e) => { e.preventDefault(); setActiveMenu('Alertas'); }}>Ver todas <Icon name="arrow" /></a>
+                <h2><Icon name="bell" /> Alertas ativos</h2>
+                <a href="#" onClick={(e) => { e.preventDefault(); setActiveMenu('Alertas'); }}>Ver todos <Icon name="arrow" /></a>
               </div>
-              {alerts.map((a) => (
-                <div key={a.title} className="list-item">
-                  <span className={`item-icon tone-${a.tone}`}><Icon name={toneIcon(a.tone)} /></span>
-                  <div className="item-body">
-                    <strong>{a.title}</strong>
-                    <small>{a.text}</small>
-                  </div>
-                  <span className="item-date">{a.date}</span>
-                </div>
-              ))}
-              {isAdmin && <p className="quality-note">Alertas ilustrativos: os alertas reais serão entregues na etapa de Alertas.</p>}
+              {alertas.carregando ? (
+                <p className="dash-vazio">Carregando alertas…</p>
+              ) : alertas.erro ? (
+                <p className="air-error" role="alert">{alertas.erro}</p>
+              ) : !alertas.dados || alertas.dados.alertas.length === 0 ? (
+                <p className="dash-vazio" data-testid="alertas-vazio">Nenhum alerta ativo em {region}.</p>
+              ) : (
+                <>
+                  {alertas.dados.alertas.slice(0, ALERTAS_NO_CARTAO).map((a) => (
+                    <div key={a.id} className="list-item" data-testid="alerta-resumo">
+                      <span className={`item-icon com-tom tom-${tomDoAlerta(a)}`}><Icon name="warning" /></span>
+                      <div className="item-body">
+                        <strong>{a.titulo}</strong>
+                        <small>
+                          {nomePoluente(a.poluente)} · {formatarValorAlerta(a.valor)} {a.unidade} · {rotuloOrigem(a.tipoDado)}
+                        </small>
+                      </div>
+                      <span className="item-date">{tempoRelativo(a.medicaoEm, agora)}</span>
+                    </div>
+                  ))}
+                  {alertas.dados.total > ALERTAS_NO_CARTAO && (
+                    <p className="quality-note">
+                      Mostrando {ALERTAS_NO_CARTAO} de {alertas.dados.total} alertas ativos.
+                    </p>
+                  )}
+                </>
+              )}
             </section>
 
             {!isAdmin && (
-              <section className="dash-card dash-occurrences">
+              <section className="dash-card dash-occurrences" data-testid="dash-ocorrencias">
                 <div className="card-head">
-                  <h2><Icon name="clipboard" /> Minhas ocorrências recentes</h2>
+                  <h2><Icon name="clipboard" /> Ocorrências recentes</h2>
                   <a href="#" onClick={(e) => { e.preventDefault(); setActiveMenu('Ocorrências'); }}>Ver todas <Icon name="arrow" /></a>
                 </div>
-                {MY_OCCURRENCES.map((o) => (
-                  <div key={o.title} className="list-item">
-                    <span className={`item-icon tone-${o.tone === 'ok' ? 'ok' : 'info'}`}>
-                      <Icon name={o.tone === 'ok' ? 'check' : o.tone === 'analysis' ? 'wind' : 'warning'} />
-                    </span>
-                    <div className="item-body">
-                      <strong>{o.title}</strong>
-                      <small>{o.text}</small>
-                      <small>{o.status}</small>
+                {ocorrencias.carregando ? (
+                  <p className="dash-vazio">Carregando ocorrências…</p>
+                ) : ocorrencias.erro ? (
+                  <p className="air-error" role="alert">{ocorrencias.erro}</p>
+                ) : !ocorrencias.dados || ocorrencias.dados.ocorrencias.length === 0 ? (
+                  <p className="dash-vazio" data-testid="ocorrencias-vazio">
+                    Nenhuma ocorrência registrada em {region}.{' '}
+                    <a href="#" onClick={(e) => { e.preventDefault(); setActiveMenu('Ocorrências'); }}>Registrar ocorrência</a>
+                  </p>
+                ) : (
+                  ocorrencias.dados.ocorrencias.map((o) => (
+                    <div key={o.id} className="list-item" data-testid="ocorrencia-resumo">
+                      <span className={`item-icon com-tom tom-${TOM_STATUS[o.status]}`}><Icon name={ICONE_STATUS_OC[o.status]} /></span>
+                      <div className="item-body">
+                        <strong>{o.titulo}</strong>
+                        <small>{formatarIdOcorrencia(o.id)} · registrada em {partesDataHora(o.criadoEm).data}</small>
+                        <small>{ROTULO_STATUS_OC[o.status]}</small>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </section>
             )}
           </div>

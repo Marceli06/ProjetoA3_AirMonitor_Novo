@@ -86,11 +86,6 @@ export default function Register({ onBackToLogin, onRegistered }: RegisterProps)
           </svg>
           <span>AirMonitor</span>
         </div>
-        <nav className="register-nav">
-          <a href="#">Sobre</a>
-          <a href="#">Recursos</a>
-          <a href="#">Ajuda</a>
-        </nav>
       </header>
 
       <main className="register-main">

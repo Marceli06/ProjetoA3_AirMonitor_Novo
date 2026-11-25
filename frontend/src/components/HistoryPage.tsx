@@ -52,17 +52,18 @@ interface GraficoProps {
   unidade: string;
   periodo: HistoricoResponse['periodo'];
   nomePoluente: string;
+  compacto?: boolean; // versão baixa, usada no cartão do Dashboard
 }
 
 // Gráfico de evolução em SVG. O eixo X cobre todo o período pedido, então períodos sem dado aparecem como lacunas
 // (a linha é interrompida e nada é interpolado). A cor indica a origem: estação (azul) ou modelo (roxo).
-function GraficoEvolucao({ pontos, unidade, periodo, nomePoluente }: GraficoProps) {
+export function GraficoEvolucao({ pontos, unidade, periodo, nomePoluente, compacto = false }: GraficoProps) {
   const caixa = useRef<HTMLDivElement>(null);
   const medida = useLargura(caixa);
   const [ativo, setAtivo] = useState<number | null>(null);
 
   const largura = Math.max(medida, 240);
-  const altura = largura < 480 ? 230 : 290;
+  const altura = compacto ? 190 : largura < 480 ? 230 : 290;
   const margem = { t: 14, r: 14, b: 30, l: largura < 480 ? 42 : 54 };
   const areaL = largura - margem.l - margem.r;
   const areaA = altura - margem.t - margem.b;

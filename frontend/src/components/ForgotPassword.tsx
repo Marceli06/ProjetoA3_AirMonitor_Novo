@@ -34,11 +34,6 @@ export default function ForgotPassword({ onBack }: ForgotPasswordProps) {
           </div>
           <span className="logo-text">AirMonitor</span>
         </div>
-        <nav className="header-nav">
-          <a href="#">Sobre</a>
-          <a href="#">Recursos</a>
-          <a href="#">Ajuda</a>
-        </nav>
       </header>
 
       {/* Main Content */}
@@ -101,7 +96,7 @@ export default function ForgotPassword({ onBack }: ForgotPasswordProps) {
 
       {/* Footer */}
       <footer className="forgot-password-footer">
-        <p>&copy; 2024 AirMonitor. Todos os direitos reservados.</p>
+        <p>&copy; 2026 AirMonitor. Todos os direitos reservados.</p>
         <p>Um ar melhor para um futuro mais saudável.</p>
       </footer>
     </div>
