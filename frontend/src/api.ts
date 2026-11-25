@@ -2,7 +2,7 @@
 import { EstacoesArResponse, UltimasMedicoesArResponse, RegisterPayload, UsuarioAdmin, DadosUsuarioForm, NovoUsuarioData, SessaoResponse,
   ResumoAdminResponse, ConfiguracoesSistema, EstacoesAdminResponse, FiltrosAlertas, ListaAlertasResponse, AlertaResponse,
   ResumoAvaliacaoAlertasResponse, FiltrosOcorrenciasAPI, ListaOcorrenciasResponse, OcorrenciaResponse, NovaOcorrenciaPayload,
-  StatusOcorrencia } from './types';
+  StatusOcorrencia, FiltrosHistoricoAPI, HistoricoResponse } from './types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -101,6 +101,12 @@ export const ocorrenciasAPI = {
   obter: (id: number, signal?: AbortSignal) => api.get<OcorrenciaResponse>(`/ocorrencias/${id}`, { signal }),
   criar: (dados: NovaOcorrenciaPayload) => api.post<OcorrenciaResponse>('/ocorrencias', dados),
   alterarStatus: (id: number, status: StatusOcorrencia) => api.patch<OcorrenciaResponse>(`/ocorrencias/${id}/status`, { status }),
+};
+
+// Histórico de qualidade do ar (série horária de um poluente). USUARIO só consulta a própria cidade (403 para outra);
+// sem histórico disponível a resposta é 200 com total 0 (a tela mostra o estado vazio).
+export const historicoAPI = {
+  consultar: (filtros: FiltrosHistoricoAPI, signal?: AbortSignal) => api.get<HistoricoResponse>('/historico', { params: filtros, signal }),
 };
 
 export default api;

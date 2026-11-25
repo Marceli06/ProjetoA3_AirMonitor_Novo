@@ -1,4 +1,4 @@
-import { OpenMeteoAirQualityResponse } from './types';
+import { OpenMeteoAirQualityResponse, OpenMeteoHourlyResponse } from './types';
 
 // Poluente do AirMonitor (mesma `chave` usada com a OpenAQ) -> variável da Open-Meteo
 export const VARIAVEL_POR_POLUENTE: Record<string, string> = {
@@ -55,4 +55,30 @@ export function mapOpenMeteo(resposta: OpenMeteoAirQualityResponse): DadosOpenMe
     longitudeGrade: typeof resposta.longitude === 'number' ? resposta.longitude : null,
     valores,
   };
+}
+
+export interface PontoOpenMeteo {
+  dataHora: string; // ISO 8601 em UTC
+  valor: number;
+  unidade: string;
+}
+
+// Série horária de uma variável -> pontos em ordem cronológica. Hora sem valor (null), negativo ou sem unidade
+// informada é descartada; `time` vem sem fuso e, como a requisição pede timezone=GMT, é UTC.
+export function mapHorarioOpenMeteo(resposta: OpenMeteoHourlyResponse, variavel: string): PontoOpenMeteo[] {
+  if (resposta.utc_offset_seconds !== undefined && resposta.utc_offset_seconds !== 0) return [];
+  const unidadeBruta = resposta.hourly_units?.[variavel];
+  const valores = resposta.hourly[variavel];
+  if (typeof unidadeBruta !== 'string' || !unidadeBruta || !Array.isArray(valores)) return [];
+  const unidade = normalizarUnidade(unidadeBruta);
+
+  const pontos: PontoOpenMeteo[] = [];
+  resposta.hourly.time.forEach((texto, i) => {
+    const valor = valores[i];
+    if (typeof valor !== 'number' || !Number.isFinite(valor) || valor < 0) return;
+    const instante = Date.parse(/Z$|[+-]\d\d:\d\d$/.test(String(texto)) ? String(texto) : `${texto}Z`);
+    if (Number.isNaN(instante)) return;
+    pontos.push({ dataHora: new Date(instante).toISOString(), valor, unidade });
+  });
+  return pontos.sort((a, b) => Date.parse(a.dataHora) - Date.parse(b.dataHora));
 }

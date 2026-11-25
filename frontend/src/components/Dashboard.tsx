@@ -5,6 +5,7 @@ import SettingsPage from './SettingsPage';
 import ReportsPage from './ReportsPage';
 import AlertsPage from './AlertsPage';
 import OccurrencesPage from './OccurrencesPage';
+import HistoryPage from './HistoryPage';
 import Icon, { IconName } from './Icon';
 import { AdminStationSummary, AdminUserStats } from './AdminWidgets';
 import { CITIES } from './Register';
@@ -174,6 +175,8 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
             <AlertsPage cidades={cidadesDisponiveis} cidade={region} onCidadeChange={setRegion} isAdmin={isAdmin} />
           ) : activeMenu === 'Ocorrências' ? (
             <OccurrencesPage cidades={cidadesDisponiveis} cidade={region} onCidadeChange={setRegion} isAdmin={isAdmin} />
+          ) : activeMenu === 'Histórico' ? (
+            <HistoryPage cidades={cidadesDisponiveis} cidade={region} onCidadeChange={setRegion} />
           ) : activeMenu !== 'Dashboard' ? (
             <section className="dash-card">
               <h2>{activeMenu}</h2>

@@ -1,4 +1,4 @@
-import { OpenAQLatest, OpenAQLocation } from './types';
+import { OpenAQLatest, OpenAQLocation, OpenAQMeasurement } from './types';
 
 // Poluentes tratados nesta etapa. `chave` é o nome do parâmetro na OpenAQ; `nome` é o rótulo do AirMonitor.
 export const POLUENTES = [
@@ -136,4 +136,25 @@ export function mapUltimasMedicoes(loc: OpenAQLocation, ultimas: OpenAQLatest[],
   const atualizadoEm = instantes.length > 0 ? new Date(Math.max(...instantes)).toISOString() : null;
 
   return { estacao, atualizadoEm, medicoes, fonte: 'OpenAQ' };
+}
+
+export interface PontoOpenAQ {
+  dataHora: string; // ISO 8601 em UTC: fim da hora a que a média se refere (convenção da OpenAQ)
+  valor: number;
+  unidade: string;
+}
+
+// Médias horárias de um sensor -> série em ordem cronológica. Valor negativo ou não numérico é erro de sensor,
+// item sem horário ou sem unidade não é confiável, e hora repetida vale uma vez: nada disso é exibido nem preenchido.
+export function mapHoras(medicoes: OpenAQMeasurement[]): PontoOpenAQ[] {
+  const porHora = new Map<string, PontoOpenAQ>();
+  for (const m of medicoes) {
+    const instante = Date.parse(String(m?.period?.datetimeTo?.utc));
+    const unidade = m?.parameter?.units;
+    if (Number.isNaN(instante) || typeof unidade !== 'string' || !unidade) continue;
+    if (typeof m.value !== 'number' || !Number.isFinite(m.value) || m.value < 0) continue;
+    const dataHora = new Date(instante).toISOString();
+    if (!porHora.has(dataHora)) porHora.set(dataHora, { dataHora, valor: m.value, unidade });
+  }
+  return [...porHora.values()].sort((a, b) => Date.parse(a.dataHora) - Date.parse(b.dataHora));
 }

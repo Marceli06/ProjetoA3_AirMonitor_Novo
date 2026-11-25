@@ -14,3 +14,12 @@ export interface OpenMeteoAirQualityResponse {
   current_units?: Record<string, string>;
   current: OpenMeteoCurrent;
 }
+
+// Série horária (hourly) da Open-Meteo: `time` e cada variável pedida são arrays de mesmo tamanho (null = sem dado)
+export interface OpenMeteoHourlyResponse {
+  latitude: number;
+  longitude: number;
+  utc_offset_seconds?: number;
+  hourly_units?: Record<string, string>;
+  hourly: { time: string[]; [variavel: string]: Array<string | number | null> | undefined };
+}

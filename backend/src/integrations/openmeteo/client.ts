@@ -1,4 +1,4 @@
-import { OpenMeteoAirQualityResponse } from './types';
+import { OpenMeteoAirQualityResponse, OpenMeteoHourlyResponse } from './types';
 
 // Tipos de falha da Open-Meteo. Ficam separados dos da OpenAQ: aqui nenhum erro derruba a rota,
 // o serviço apenas deixa de usar a fonte complementar.
@@ -75,4 +75,52 @@ export async function getCurrentAirQuality(
   }
 
   return corpo as OpenMeteoAirQualityResponse;
+}
+
+// Série horária de UM poluente (modelo CAMS) na célula da grade da coordenada, entre duas datas UTC (AAAA-MM-DD,
+// inclusive). A API devolve também as horas futuras do último dia: quem chama filtra pelo período.
+export async function getHourlyAirQuality(
+  latitude: number,
+  longitude: number,
+  variavel: string,
+  dataInicial: string,
+  dataFinal: string
+): Promise<OpenMeteoHourlyResponse> {
+  const url = new URL(`${baseUrl()}/air-quality`);
+  url.searchParams.set('latitude', String(latitude));
+  url.searchParams.set('longitude', String(longitude));
+  url.searchParams.set('hourly', variavel);
+  url.searchParams.set('start_date', dataInicial);
+  url.searchParams.set('end_date', dataFinal);
+  url.searchParams.set('timezone', 'GMT');
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(timeoutMs()),
+    });
+  } catch (error: any) {
+    if (ehTimeout(error)) throw new OpenMeteoError('timeout', 'A Open-Meteo não respondeu a tempo');
+    throw new OpenMeteoError('unavailable', 'Falha de rede ao consultar a Open-Meteo');
+  }
+
+  const { status } = response;
+  if (status === 429) throw new OpenMeteoError('rate_limit', 'Limite de requisições da Open-Meteo atingido', status);
+  if (status === 400) throw new OpenMeteoError('bad_request', 'Parâmetros recusados pela Open-Meteo', status);
+  if (!response.ok) throw new OpenMeteoError('unavailable', `Open-Meteo respondeu com status ${status}`, status);
+
+  let corpo: any;
+  try {
+    corpo = await response.json();
+  } catch (error: any) {
+    if (ehTimeout(error)) throw new OpenMeteoError('timeout', 'A Open-Meteo não respondeu a tempo');
+    throw new OpenMeteoError('invalid_response', 'Resposta da Open-Meteo não é um JSON válido', status);
+  }
+
+  if (!corpo || typeof corpo !== 'object' || !corpo.hourly || !Array.isArray(corpo.hourly.time) || !Array.isArray(corpo.hourly[variavel])) {
+    throw new OpenMeteoError('invalid_response', 'Resposta da Open-Meteo em formato inesperado', status);
+  }
+
+  return corpo as OpenMeteoHourlyResponse;
 }

@@ -296,3 +296,63 @@ export interface NovaOcorrenciaPayload {
   local: string;
   estacaoNome?: string;
 }
+
+// Histórico de qualidade do ar (GET /api/historico): série horária de UM poluente em uma cidade.
+// Cada ponto vem de uma estação (OpenAQ, medição) ou do modelo CAMS (Open-Meteo, estimativa).
+export type PeriodoHistorico = '24H' | '7D' | '30D';
+export type FonteHistorico = 'AUTO' | 'OPENAQ' | 'OPEN_METEO';
+
+export interface PontoHistorico {
+  dataHora: string; // ISO 8601 em UTC
+  valor: number;
+  unidade: string;
+  poluente: string; // chave: pm25, pm10, o3, no2, co, so2
+  poluenteNome: string;
+  estacaoId: number | null; // null nos pontos do modelo
+  estacaoNome: string | null;
+  origem: OrigemAlerta;
+  tipoDado: TipoDadoAlerta;
+}
+
+export interface EstacaoHistorico {
+  id: number;
+  nome: string | null;
+  localidade: string | null;
+  distanciaMetros: number | null;
+  ultimaMedicaoEm: string | null;
+  comDadosNoPeriodo: boolean;
+}
+
+export interface ResumoHistorico {
+  minimo: number;
+  maximo: number;
+  media: number;
+  ultimo: { valor: number; dataHora: string };
+}
+
+export type StatusFonteHistorico = 'ok' | 'sem_dado' | 'falha' | 'nao_consultada';
+
+export interface HistoricoResponse {
+  cidade: string;
+  poluente: { chave: string; nome: string; unidade: string | null };
+  periodo: { codigo: PeriodoHistorico; rotulo: string; de: string; ate: string };
+  fonteSolicitada: FonteHistorico;
+  total: number;
+  pontos: PontoHistorico[]; // ordem cronológica
+  resumo: ResumoHistorico | null;
+  estacao: { id: number; nome: string | null; localidade: string | null; distanciaMetros: number | null } | null;
+  estacoes: EstacaoHistorico[];
+  fontesUtilizadas: OrigemAlerta[];
+  statusFontes: { OPENAQ: StatusFonteHistorico; OPEN_METEO: StatusFonteHistorico | 'nao_necessaria' };
+  atribuicoes: string[];
+  aviso: string | null;
+  mensagem: string | null;
+}
+
+export interface FiltrosHistoricoAPI {
+  cidade: string;
+  poluente: string;
+  periodo: PeriodoHistorico;
+  fonte?: FonteHistorico;
+  estacaoId?: number;
+}

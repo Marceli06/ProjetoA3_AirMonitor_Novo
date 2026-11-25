@@ -119,7 +119,18 @@ export async function getLocationLatest(id: number) {
   return resposta.results;
 }
 
-// Preparado para a etapa de histórico: medições de um sensor em um intervalo (ainda sem rota)
+// Médias horárias de um sensor em um intervalo (GET /sensors/{id}/hours). Cada item traz o período da hora
+// (period.datetimeFrom/To). 1000 itens cobrem os 30 dias do histórico (720 horas) numa única página.
+export async function getSensorHours(sensorId: number, params: { from: string; to: string; limit?: number }) {
+  const resposta = await request<OpenAQMeasurement>(`/sensors/${sensorId}/hours`, {
+    datetime_from: params.from,
+    datetime_to: params.to,
+    limit: params.limit ?? 1000,
+  });
+  return resposta.results;
+}
+
+// Medições brutas de um sensor em um intervalo (não usado pela rota de histórico, que prefere as médias horárias)
 export async function getSensorMeasurements(
   sensorId: number,
   params: { from: string; to: string; limit?: number; page?: number }
