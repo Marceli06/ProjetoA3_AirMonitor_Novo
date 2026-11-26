@@ -4,7 +4,7 @@
 // (tmp.*@example.com, "[TESTE...]") e os removem no final.
 //
 // Uso (dentro de backend/):   npm run ui:validate
-//   UI_SCRIPTS=dashboard,admin,alertas,ocorrencias,historico,sistema   (padrão: todos)
+//   UI_SCRIPTS=dashboard,admin,alertas,ocorrencias,historico,sistema,niveis   (padrão: todos)
 //   UI_BROWSERS=chrome,edge                                             (padrão: chrome)
 //   UI_PAUSA=20                                                         (segundos entre scripts que usam a OpenAQ)
 // Firefox não é suportado: os scripts usam o DevTools Protocol (Chromium/Edge).
@@ -25,6 +25,7 @@ const SCRIPTS = [
   { nome: 'ocorrencias', arquivo: 'validateOcorrenciasUI.mjs', usaOpenAQ: false },
   { nome: 'historico', arquivo: 'validateHistoricoUI.mjs', usaOpenAQ: true },
   { nome: 'sistema', arquivo: 'validateSistemaUI.mjs', usaOpenAQ: true },
+  { nome: 'niveis', arquivo: 'validateNiveisUI.mjs', usaOpenAQ: false },
 ];
 
 const CAMINHOS_NAVEGADOR = {

@@ -523,11 +523,19 @@ async function main() {
       return `poluentes com valor: ${cards.filter((c) => c.v).length}/6 (tags: ${[...new Set(cards.map((c) => c.fonte))].join(',')})`;
     });
 
-    await caso('A05', 'Alertas no Dashboard: sino, situação e lista batem com o banco (alerta de teste CRÍTICO ativo)', async () => {
+    await caso('A05', 'Alertas no Dashboard: sino, situação e lista batem com o banco (alerta de teste ativo; situação vem dos poluentes)', async () => {
       const n = await ativosNoBanco(MAUA);
       afirmar(n >= 1, 'semente ausente');
       afirmar((await textoSel('[data-testid="sino-contagem"]')) === String(n), `sino=${await textoSel('[data-testid="sino-contagem"]')} banco=${n}`);
-      afirmar(/Nível crítico/.test(await textoSel('[data-testid="situacao-titulo"]')), 'situação deveria ser Nível crítico: ' + (await textoSel('[data-testid="situacao-titulo"]')));
+      // A situação geral vem do MAIOR nível entre os poluentes avaliáveis (não do alerta mais grave)
+      const ordem = ['BAIXO', 'MODERADO', 'ALTO', 'CRITICO'];
+      const niveisTela = await avaliar(`[...document.querySelectorAll('[data-testid="nivel-poluente"]')].map(e => e.dataset.nivel).filter(n => n !== 'NENHUM')`);
+      const maiorTela = niveisTela.reduce((a, b) => (ordem.indexOf(b) > ordem.indexOf(a) ? b : a), null);
+      const rotuloTela = { BAIXO: 'Nível baixo', MODERADO: 'Nível moderado', ALTO: 'Nível alto', CRITICO: 'Nível crítico' };
+      const tituloEsperado = maiorTela ? rotuloTela[maiorTela] : 'Dados insuficientes';
+      afirmar((await textoSel('[data-testid="situacao-titulo"]')) === tituloEsperado, `situação "${await textoSel('[data-testid="situacao-titulo"]')}" ≠ esperado "${tituloEsperado}" (níveis dos poluentes: ${niveisTela.join(',') || 'nenhum'})`);
+      afirmar((await textoSel('[data-testid="situacao-alertas"]')).startsWith(String(n)), `contagem de alertas na situação: ${await textoSel('[data-testid="situacao-alertas"]')} (banco ${n})`);
+      afirmar(/Consulte os detalhes na tela de Alertas\./.test(await textoSel('[data-testid="situacao-mensagem"]')), 'mensagem de alertas ativos');
       afirmar((await textoSel('[data-testid="dash-alertas"]')).includes(MARCA), 'alerta de teste no cartão (mais recente primeiro)');
       afirmar(await existe('[data-testid="alerta-resumo"]'), 'itens de resumo');
       return `${n} alerta(s) ativo(s) em ${MAUA}`;
@@ -808,7 +816,7 @@ async function main() {
         afirmar(await existe('.alerts-retry'), 'botão Tentar novamente');
         afirmar(await clicarMenu('Dashboard'), 'menu Dashboard');
         await esperar(`!!document.querySelector('[data-testid="dash-alertas"] [role="alert"]')`, 15000, 'erro no cartão de alertas');
-        afirmar(/Indisponível/.test(await textoSel('[data-testid="dash-situacao"]')), 'situação deve indicar indisponível');
+        afirmar(/Alertas indisponíveis/.test(await textoSel('[data-testid="dash-situacao"]')), 'situação deve indicar alertas indisponíveis');
         await foto('D02-erro-alertas-dashboard', 1366, 900);
       } finally { await liberar(); }
       afirmar(await clicarMenu('Alertas'), 'menu Alertas');

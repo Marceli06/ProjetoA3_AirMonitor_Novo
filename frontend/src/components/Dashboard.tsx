@@ -15,6 +15,7 @@ import { MedicaoAr, StatusOcorrencia } from '../types';
 import { ROTULO_NIVEL, formatarValorAlerta, nomePoluente, rotuloOrigem, tempoRelativo, tomDoAlerta } from '../utils/alertas';
 import { POLLUTANTS, ROTULO_FONTE, formatarDataHora, formatarDistancia, formatarValor } from '../utils/formatar';
 import { ROTULO_ORIGEM_HIST } from '../utils/historico';
+import { motivoSemNivel, nivelDaMedicao, situacaoGeral } from '../utils/niveisPoluentes';
 import { ROTULO_STATUS_OC, TOM_STATUS, formatarIdOcorrencia, partesDataHora } from '../utils/ocorrencias';
 import './Severidade.css';
 import './Dashboard.css';
@@ -76,8 +77,9 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
   const initials = isAdmin ? 'AD' : userName.slice(0, 2).toUpperCase();
 
   const totalAlertas = alertas.dados?.total ?? 0;
-  const maisGrave = alertas.dados?.maisGrave ?? null;
-  const tomGeral = maisGrave ? maisGrave.toLowerCase() : 'resolvido';
+  // Situação geral = maior nível entre os poluentes avaliáveis (a mesma classificação de Alertas); não depende da lista de alertas
+  const nivelGeral = qualidade.loading ? null : situacaoGeral(POLLUTANTS.map((p) => nivelDaMedicao(qualidade.medicoes.find((x) => x.chave === p.chave))));
+  const tomGeral = nivelGeral ? nivelGeral.toLowerCase() : 'neutro';
   const agora = new Date();
   const poluenteSelecionado = POLLUTANTS.find((p) => p.chave === poluenteHist) ?? POLLUTANTS[0];
 
@@ -208,38 +210,38 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
           <div className="dash-row dash-row-top">
             <section className="dash-card dash-quality" data-testid="dash-situacao">
               <h2>Situação do ar agora</h2>
-              {alertas.carregando ? (
+              {qualidade.loading ? (
                 <>
                   <div className="quality-ring"><Icon name="leaf" /></div>
-                  <div className="quality-value"><strong>Carregando…</strong><span>Consultando os alertas de {region}</span></div>
-                </>
-              ) : alertas.erro ? (
-                <>
-                  <div className="quality-ring com-tom tom-moderado"><Icon name="warning" /></div>
-                  <div className="quality-value"><strong className="quality-indisponivel">Indisponível</strong><span>Não foi possível consultar os alertas</span></div>
-                  <p className="air-error" role="alert">{alertas.erro}</p>
+                  <div className="quality-value"><strong>Carregando…</strong><span>Consultando a qualidade do ar de {region}</span></div>
                 </>
               ) : (
                 <>
-                  <div className={`quality-ring com-tom tom-${tomGeral}`}><Icon name={maisGrave ? 'alert' : 'leaf'} /></div>
+                  <div className={`quality-ring com-tom tom-${tomGeral}`}><Icon name={nivelGeral === 'BAIXO' ? 'leaf' : nivelGeral ? 'alert' : 'info'} /></div>
                   <div className={`quality-value com-tom tom-${tomGeral}`}>
-                    <strong data-testid="situacao-titulo">{maisGrave ? `Nível ${ROTULO_NIVEL[maisGrave].toLowerCase()}` : 'Sem alertas ativos'}</strong>
-                    <span>{maisGrave ? 'Maior nível entre os alertas ativos' : `Nenhum alerta registrado em ${region}`}</span>
-                    {maisGrave && (
-                      <b>{totalAlertas} <small>{totalAlertas === 1 ? 'alerta ativo' : 'alertas ativos'}</small></b>
+                    <strong data-testid="situacao-titulo">{nivelGeral ? `Nível ${ROTULO_NIVEL[nivelGeral].toLowerCase()}` : 'Dados insuficientes'}</strong>
+                    <span>{nivelGeral ? 'Maior nível entre os poluentes avaliados' : `Sem poluentes com nível calculado em ${region}`}</span>
+                    {totalAlertas > 0 && (
+                      <b data-testid="situacao-alertas">{totalAlertas} <small>{totalAlertas === 1 ? 'alerta ativo' : 'alertas ativos'}</small></b>
                     )}
                   </div>
-                  <div className={`quality-msg com-tom tom-${tomGeral}`}>
-                    <Icon name={maisGrave ? 'warning' : 'smile'} />
-                    <p>
-                      {maisGrave
-                        ? 'Há poluentes acima dos limites de referência. Consulte os detalhes na tela de Alertas.'
-                        : 'Os alertas são gerados quando o administrador avalia as medições; hoje não há nenhum ativo.'}
-                    </p>
-                  </div>
+                  {alertas.erro ? (
+                    <p className="air-error" role="alert" data-testid="situacao-erro-alertas">Alertas indisponíveis: {alertas.erro}</p>
+                  ) : (
+                    <div className={`quality-msg com-tom tom-${tomGeral}`}>
+                      <Icon name={alertas.carregando ? 'clock' : totalAlertas > 0 ? 'bell' : 'info'} />
+                      <p data-testid="situacao-mensagem">
+                        {alertas.carregando
+                          ? 'Carregando alertas…'
+                          : totalAlertas > 0
+                            ? 'Consulte os detalhes na tela de Alertas.'
+                            : `Nenhum alerta ativo em ${region}. Os alertas são gerados quando o administrador avalia as medições.`}
+                      </p>
+                    </div>
+                  )}
                 </>
               )}
-              <p className="quality-note">Níveis calculados com limiares técnicos provisórios; o IQA oficial ainda não é calculado.</p>
+              <p className="quality-note">Níveis calculados com limiares técnicos provisórios. O IQA oficial ainda não é calculado.</p>
             </section>
 
             <section className="dash-card dash-pollutants">
@@ -251,6 +253,7 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
                 {POLLUTANTS.map((p) => {
                   const m: MedicaoAr | undefined = qualidade.medicoes.find((x) => x.chave === p.chave);
                   const temValor = !!m && m.disponivel && m.valor !== null && m.fonte !== null;
+                  const nivel = temValor ? nivelDaMedicao(m) : null;
                   return (
                     <div key={p.name} className="pollutant">
                       <div className="pollutant-name">
@@ -266,6 +269,20 @@ export default function Dashboard({ role, userName, onLogout }: DashboardProps) 
                           <span>{qualidade.loading ? 'Carregando…' : '—'}</span>
                         )}
                       </div>
+                      {temValor && (nivel ? (
+                        <span
+                          className={`alert-level tom-${nivel.toLowerCase()} pollutant-nivel`}
+                          data-testid="nivel-poluente"
+                          data-nivel={nivel}
+                          title="Nível calculado com limiares técnicos provisórios (não é IQA oficial)"
+                        >
+                          {ROTULO_NIVEL[nivel]}
+                        </span>
+                      ) : (
+                        <span className="alert-level tom-neutro pollutant-nivel" data-testid="nivel-poluente" data-nivel="NENHUM" title={motivoSemNivel(m!)}>
+                          Sem nível
+                        </span>
+                      ))}
                       {temValor ? (
                         <>
                           <span className={m!.fonte === 'OPEN_METEO' ? 'tag-model' : 'tag-ok'}>● {ROTULO_FONTE[m!.fonte!]}</span>

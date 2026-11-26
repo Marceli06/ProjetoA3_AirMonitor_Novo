@@ -741,6 +741,20 @@
   color: var(--tom);
 }
 
+/* Sem nível calculado (dados insuficientes, unidade diferente de µg/m³ ou dado desatualizado): tom neutro, igual ao .tag-none */
+.tom-neutro {
+  --tom: #5c7a99;
+  --tom-bg: #eef2f6;
+  --tom-borda: #d3dee8;
+}
+
+/* Selo de nível de cada poluente (as cores baixo/moderado/alto/crítico vêm de Severidade.css) */
+.pollutant-nivel {
+  align-self: flex-start;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.7rem;
+}
+
 .item-icon.com-tom {
   background: var(--tom);
 }
